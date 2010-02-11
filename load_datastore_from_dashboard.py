@@ -1,8 +1,15 @@
-
-
+import urllib
+import urllib2
+import cookielib
 import cjson
-import uuid
+
 from schemas import datastore
+
+http_base = "http://inst1.dev.dashboard.invitemedia.com"
+credentials = {'username': 'superuser', 'password': 'imim42'}
+
+#http_base = "http://ev3.dash.invitemedia.com:82"
+#credentials = {'username': 'internal_api_user', 'password': 'PMVCR24m'}
 
 class DatastoreManager(object):
     
@@ -217,6 +224,14 @@ class DatastoreManager(object):
         self._move(inst, 'creative', 'creative_id')
         self._move(inst, 'insertion_order', 'insertion_order_id')
         
+        # DIRTY HACK -- Dashboard DB currently violates creative/campaign
+        #  line item uniqueness. We have to account for it here.
+        temp_li = self.line_items.get_campaign_and_creative((inst['campaign_id'], inst['creative_id']))
+        if temp_li and temp_li.id != inst['id']:
+            print "Skipping %r" % inst
+            return
+        # End Hack
+        
         id = self._freplace(self.line_items, datastore.line_item, inst)
         
         for bid_strat in inst['bidding_strategies']:
@@ -273,17 +288,16 @@ class DatastoreManager(object):
     
     def load_publisher_line_item(self, inst):
         inst = inst['fields']
-        self.move(inst, 'partner', 'partner_id')
-        self.move(inst, 'insertion_order', 'insertion_order_id')
-        self.move(inst, 'inventory_source', 'inventory_source_id')
+        self._move(inst, 'partner', 'partner_id')
+        self._move(inst, 'inventory_source', 'inventory_source_id')
         
-        id = self._freplace(self.publisher_line_items, datastore.publisher_line_items, inst)
+        id = self._freplace(self.publisher_line_items, datastore.publisher_line_item, inst)
         
         for dc_inst in inst['default_creatives'].values():
             self.load_publisher_line_item_default_creative(dc_inst)
         
         # Target options
-        self.publisher_line_item_target_option.delete_publisher_line_item_id( id)
+        self.publisher_line_item_target_options.delete_publisher_line_item_id( id)
         arg_bag = {'publisher_line_item_id': id}
         self._load_target_options(
             arg_bag, inst['target_options'],
@@ -317,46 +331,40 @@ class DatastoreManager(object):
 
 dstore = DatastoreManager()
 
-for o in cjson.decode(open('../dumps/partners.dump').read()):
-    dstore.load_partner(o)
+cjar = cookielib.CookieJar()
 
-for o in cjson.decode(open('../dumps/clients.dump').read()):
-    dstore.load_client(o)
+def request(path, data = None):
+    path = '%s%s' % (http_base, path)
+    req = urllib2.Request(path, data = data)
+    
+    h = urllib2.OpenerDirector()
+    h.add_handler(urllib2.HTTPHandler(debuglevel = 1))
+    h.add_handler(urllib2.HTTPCookieProcessor(cjar))
+    return h.open(req)
 
-for o in cjson.decode(open('../dumps/pixels.dump').read()):
-    dstore.load_pixel(o)
+request('/login/')
+request('/login/', data = urllib.urlencode(credentials))
 
-for o in cjson.decode(open('../dumps/piggyback_pixels.dump').read()):
-    dstore.load_piggyback_pixel(o)
+ent_types = [
+    ('/partners/?response_type=json', dstore.load_partner),
+    ('/clients/?response_type=json', dstore.load_client),
+    ('/pixels/?response_type=json', dstore.load_pixel),
+    ('/piggyback_pixels/?response_type=json', dstore.load_piggyback_pixel),
+    ('/creatives/?response_type=json', dstore.load_creative),
+    ('/budgets/?response_type=json', dstore.load_budget),
+    ('/learning_budgets/?response_type=json', dstore.load_learning_budget),
+    ('/insertion_orders/?response_type=json', dstore.load_insertion_order),
+    ('/campaigns/?response_type=json', dstore.load_campaign),
+    ('/line_items/?target_options=True&response_type=json', dstore.load_line_item),
+    ('/inventory_sources/?response_type=json', dstore.load_inventory_source),
+    ('/inventory_groups/?response_type=json', dstore.load_inventory_group),
+    ('/inventory_units/?response_type=json', dstore.load_inventory_unit),
+    ('/inventory_sizes/?response_type=json', dstore.load_inventory_size),
+    ('/publisher_lineitems/?target_options=True&response_type=json', dstore.load_publisher_line_item),
+    ('/universal_sites/?response_type=json', dstore.load_universal_site),
+]
 
-for o in cjson.decode(open('../dumps/creatives.dump').read()):
-    dstore.load_creative(o)
-
-for o in cjson.decode(open('../dumps/budgets.dump').read()):
-    dstore.load_budget(o)
-
-for o in cjson.decode(open('../dumps/insertion_orders.dump').read()):
-    dstore.load_insertion_order(o)
-
-for o in cjson.decode(open('../dumps/campaigns.dump').read()):
-    dstore.load_campaign(o)
-
-for o in cjson.decode(open('../dumps/line_items.dump').read()):
-    if o['pk'] in (52,): continue
-    dstore.load_line_item(o)
-
-for o in cjson.decode(open('../dumps/inventory_sources.dump').read()):
-    dstore.load_inventory_source(o)
-
-for o in cjson.decode(open('../dumps/inventory_groups.dump').read()):
-    dstore.load_inventory_group(o)
-
-for o in cjson.decode(open('../dumps/inventory_units.dump').read()):
-    dstore.load_inventory_unit(o)
-
-for o in cjson.decode(open('../dumps/inventory_sizes.dump').read()):
-    dstore.load_inventory_size(o)
-
-for o in cjson.decode(open('../dumps/universal_sites.dump').read()):
-    dstore.load_universal_site(o)
+for (path, loader) in ent_types:
+    for inst in cjson.decode( request(path).read()):
+        loader( inst)
 

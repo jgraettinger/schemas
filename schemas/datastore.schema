@@ -305,7 +305,6 @@ inventory_size_code = relation(
 publisher_line_item = entity(
     id =                                 hashed_unique(int),
     partner_id =                         partner.id,
-    insertion_order_id =                 insertion_order.id,
     inventory_source_id =                inventory_source.id,
     default_trust_clients =              bool,
     integration_code =                   optional(str),
