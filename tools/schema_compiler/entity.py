@@ -633,6 +633,12 @@ class Entity(object):
             }
 
             %(tab_iter_type)s table_%(name)s::iter(){
+                if(!_lock_state)
+                {
+                    throw std::logic_error(
+                        "table_%(name)s: not locked");
+                }
+                
                 return %(tab_iter_type)s(
                     %(get_def_index)s.begin(),
                     %(get_def_index)s.end(),
@@ -721,6 +727,11 @@ class Entity(object):
         r.lines("""
         void table_%(name)s::insert(const boost::python::object & o)
         {
+            if(_lock_state != WRITE)
+            {
+                throw std::logic_error("table_%(name)s::insert(): "
+                    "not write-locked");
+            }
             // extract python object into row storage
             %(name)s::%(name)s t(_alloc);
         """, 8,
