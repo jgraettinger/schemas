@@ -2,11 +2,11 @@ _database_name = 'datastore'
 
 # Partner
 partner = entity(
-	id =                   hashed_unique(int),
-	name =                 str,
-	sell_to_adnexus =      bool,
+    id =                   hashed_unique(int),
+    name =                 str,
+    sell_to_adnexus =      bool,
     right_media_id =       optional(int),
-	adnexus_id =           optional(int),
+    adnexus_id =           optional(int),
     can_buy_on_realtime_admeld =   bool,
     can_buy_on_realtime_pubmatic = bool,
     can_buy_on_realtime_google =   bool,
@@ -17,23 +17,23 @@ partner = entity(
 
 # Client
 client = entity(
-	id =                        hashed_unique(int),
-	partner_id =                partner.id,
-	name =                      str,
+    id =                        hashed_unique(int),
+    partner_id =                partner.id,
+    name =                      str,
     landing_page_url =          str,
 )
 
 # Pixel
 pixel = entity(
-	id =                   hashed_unique(int),
-	name =                 str,
-	is_partner_wide =      bool,
-	partner_id =           partner.id,
-	client_id =            optional(client.id),
-	description =          optional(str),
-	integration_code =     optional(str),
-	pixel_type =           interned,
-	target_option_value =  int,
+    id =                   hashed_unique(int),
+    name =                 str,
+    is_partner_wide =      bool,
+    partner_id =           partner.id,
+    client_id =            optional(client.id),
+    description =          optional(str),
+    integration_code =     optional(str),
+    pixel_type =           interned,
+    target_option_value =  int,
 ).index(
     'partner_code',
     ordered,
@@ -46,105 +46,125 @@ pixel = entity(
 
 # Piggyback Pixel
 piggyback_pixel = entity(
-	id =                 hashed_unique(int),
-	pixel_id =           optional(pixel.id),
-	format =             interned,
-	hidden =             bool,
-	is_primary =         bool,
-	redirect_var =       optional(str),
-	right_media_id =     optional(int),
-	right_media_type =   optional(interned),
-	url =                str,
+    id =                 hashed_unique(int),
+    pixel_id =           optional(pixel.id),
+    format =             interned,
+    hidden =             bool,
+    is_primary =         bool,
+    redirect_var =       optional(str),
+    right_media_id =     optional(int),
+    right_media_type =   optional(interned),
+    url =                str,
 )
 
 # Creative
 creative = entity(
-	id =                        hashed_unique(int),
-	client_id =                 client.id,
-	name =                      str,
-	asset_url =                 optional(str),
-	clickthrough_url =          optional(str),
-	flash_click_tag =           optional(interned),
-	flash_loop =                bool,
-	priority =                  interned,
-	width =                     int,
-	height =                    int,
-	im_tag_template =           str,
-	track_clicks =              bool,
-	tracking_pixel =            optional(interned),
-	url_type =                  interned,
+    id =                        hashed_unique(int),
+    client_id =                 client.id,
+    name =                      str,
+    asset_url =                 optional(str),
+    clickthrough_url =          optional(str),
+    flash_click_tag =           optional(interned),
+    flash_loop =                bool,
+    priority =                  interned,
+    width =                     int,
+    height =                    int,
+    im_tag_template =           str,
+    track_clicks =              bool,
+    tracking_pixel =            optional(interned),
+    url_type =                  interned,
 )
 
 # Budget
 budget = entity(
-	id =                          hashed_unique(int),
-	in_budget =                   bool,
-	impression_cap =              optional(long),
-	impression_count =            optional(long),
-	nano_dollar_cap =             optional(long),
-	nano_dollar_count =           optional(long),
-	interval =                    optional(int),
-	interval_impression_cap =     optional(long),
-	interval_impression_count =   optional(long),
-	interval_nano_dollar_cap =    optional(long),
-	interval_nano_dollar_count =  optional(long),
+    id =                          hashed_unique(int),
+    in_budget =                   bool,
+    impression_cap =              optional(long),
+    impression_count =            optional(long),
+    nano_dollar_cap =             optional(long),
+    nano_dollar_count =           optional(long),
+    interval =                    optional(int),
+    interval_impression_cap =     optional(long),
+    interval_impression_count =   optional(long),
+    interval_nano_dollar_cap =    optional(long),
+    interval_nano_dollar_count =  optional(long),
 )
 
 # Learning Budget
 learning_budget = entity(
-	id =                          hashed_unique(int),
-	in_budget =                   bool,
-	nano_dollar_cap =             optional(long),
-	nano_dollar_count =           optional(long),
-	interval =                    optional(int),
-	interval_nano_dollar_cap =    optional(long),
-	interval_nano_dollar_count =  optional(long),
+    id =                          hashed_unique(int),
+    in_budget =                   bool,
+    nano_dollar_cap =             optional(long),
+    nano_dollar_count =           optional(long),
+    interval =                    optional(int),
+    interval_nano_dollar_cap =    optional(long),
+    interval_nano_dollar_count =  optional(long),
 )
 
 # Insertion order
 insertion_order = entity(
-	id =         hashed_unique(int),
-	client_id =  client.id,
+    id =         hashed_unique(int),
+    client_id =  client.id,
     budget_id =  budget.id,
-	name =       str,
+    name =       str,
+)
+
+# Target Option Names
+target_option_name = entity(
+    id   = hashed_unique(int),
+    name = ordered_unique(str),
+)
+
+# Target Option Values
+target_option_value = entity(
+    id    = hashed_unique(int),
+    value = ordered_unique(str),
 )
 
 # Campaign
 campaign = entity(
-	id =                                       hashed_unique(int),
-	insertion_order_id =                       insertion_order.id,
-	budget_id =                                budget.id,
-	learning_budget_id =                       budget.id,
-	name =                                     str,
-	learn_mode =                               bool,
-	campaign_priority =                        interned,
-	campaign_type =                            optional(interned),
-	click_conversion_rate =                    interned,
-	optimized_click_threshold =                int,
-	optimized_conversion_threshold =           int,
-	optimized_impression_threshold =           int,
+    id =                                       hashed_unique(int),
+    insertion_order_id =                       insertion_order.id,
+    budget_id =                                budget.id,
+    learning_budget_id =                       budget.id,
+    name =                                     str,
+    learn_mode =                               bool,
+    campaign_priority =                        interned,
+    campaign_type =                            optional(interned),
+    click_conversion_rate =                    interned,
+    optimized_click_threshold =                int,
+    optimized_conversion_threshold =           int,
+    optimized_impression_threshold =           int,
+)
+
+# Campaign target options
+campaign_target_option = relation(
+    campaign_id     = campaign.id,
+    name_id         = target_option_name.id,
+    value_id        = target_option_value.id,
+    exclude         = bool,
 )
 
 # Frequency Cap
 frequency_cap = entity(
-	id =                hashed_unique(int),
+    id =                hashed_unique(int),
     campaign_id =       hashed_unique( campaign.id),
-	period =            optional(int),
-	total_per_period =  optional(int),
-	type =              interned,
+    period =            optional(int),
+    total_per_period =  optional(int),
+    type =              interned,
 )
 
 # Client Goal
 client_goal = entity(
-	id =             hashed_unique(int),
-	campaign_id =    hashed( campaign.id),
-	amount =         optional(str),
-	click_amount =   optional(str),
-	click_window =   optional(int),
-	deleted =        bool,
-	goal_type =      interned,
-	view_amount =    optional(str),
-	view_window =    optional(int),
+    id =             hashed_unique(int),
+    campaign_id =    hashed( campaign.id),
+    amount =         optional(str),
+    click_amount =   optional(str),
+    click_window =   optional(int),
+    deleted =        bool,
+    goal_type =      interned,
+    view_amount =    optional(str),
+    view_window =    optional(int),
 )
 
 # Client Goal => Pixel
@@ -155,16 +175,16 @@ client_goal_pixel = relation(
 
 # Payment Item
 payment_item = entity(
-	id =                                  hashed_unique(int),
+    id =                                  hashed_unique(int),
     campaign_id =                         hashed( campaign.id),
-	item_type =                           interned,
-	amount =                              optional(str),
-	click_amount =                        optional(str),
-	click_window =                        optional(int),
-	media_cost_markup =                   optional(interned),
-	media_cost_markup_applies_to_total =  bool,
-	view_amount =                         optional(str),
-	view_window =                         optional(int),
+    item_type =                           interned,
+    amount =                              optional(str),
+    click_amount =                        optional(str),
+    click_window =                        optional(int),
+    media_cost_markup =                   optional(interned),
+    media_cost_markup_applies_to_total =  bool,
+    view_amount =                         optional(str),
+    view_window =                         optional(int),
 )
 
 # Payment Item => Pixel
@@ -175,24 +195,24 @@ payment_item_pixel = relation(
 
 # Bidding Strategy
 bidding_strategy = entity(
-	id =                  hashed_unique(int),
-	campaign_id =         hashed( campaign.id),
-	amount =              optional(str),
-	click_amount =        optional(str),
-	max_amount =          optional(str),
-	price_reduce =        bool,
-	pricing_type =        optional(interned),
-	stay_within_goals =   bool,
-	strategy_type =       interned,
-	view_amount =         optional(str),
+    id =                  hashed_unique(int),
+    campaign_id =         hashed( campaign.id),
+    amount =              optional(str),
+    click_amount =        optional(str),
+    max_amount =          optional(str),
+    price_reduce =        bool,
+    pricing_type =        optional(interned),
+    stay_within_goals =   bool,
+    strategy_type =       interned,
+    view_amount =         optional(str),
 )
 
 # Line Item
 line_item = entity(
-	id =                                       hashed_unique(int),
-	
-	campaign_id =                              campaign.id,
-	creative_id =                              creative.id,
+    id =                                       hashed_unique(int),
+    
+    campaign_id =                              campaign.id,
+    creative_id =                              creative.id,
     insertion_order_id =                       insertion_order.id,
     
     active =                                   ordered(bool),
@@ -202,12 +222,12 @@ line_item = entity(
     pubmatic_active =                          bool,
     google_active =                            bool,
     
-	cost_adjustment =                          float,
-	learn_mode =                               bool,
-	percent_media_additional_cost_1 =          optional(float),
-	percent_media_additional_cost_2 =          optional(float),
-	percent_profit_margin_additional_cost_1 =  optional(float),
-	percent_profit_margin_additional_cost_2 =  optional(float),
+    cost_adjustment =                          float,
+    learn_mode =                               bool,
+    percent_media_additional_cost_1 =          optional(float),
+    percent_media_additional_cost_2 =          optional(float),
+    percent_profit_margin_additional_cost_1 =  optional(float),
+    percent_profit_margin_additional_cost_2 =  optional(float),
 ).index(
     'campaign_and_creative',
     hashed_unique,
@@ -216,51 +236,51 @@ line_item = entity(
 
 # Inventory Source
 inventory_source = entity(
-	id =                            hashed_unique(int),
-	name =                          str,
-	partner_id =                    partner.id,
-	piggyback_pixel_id =            optional(piggyback_pixel.id),
-	integration_code =              optional(str),
-	linked_partner_reserve =        optional(str),
-	managed =                       bool,
-	reserve_cpm =                   optional(float),
+    id =                            hashed_unique(int),
+    name =                          str,
+    partner_id =                    partner.id,
+    piggyback_pixel_id =            optional(piggyback_pixel.id),
+    integration_code =              optional(str),
+    linked_partner_reserve =        optional(str),
+    managed =                       bool,
+    reserve_cpm =                   optional(float),
 )
 
 # Inventory Group
 inventory_group = entity(
-	id =                         hashed_unique(int),
-	inventory_source_id =        inventory_source.id,
-	integration_code =           optional(str),
-	linked_partner_reserve =     optional(str),
-	name =                       str,
+    id =                         hashed_unique(int),
+    inventory_source_id =        inventory_source.id,
+    integration_code =           optional(str),
+    linked_partner_reserve =     optional(str),
+    name =                       str,
 )
 
 # Inventory Unit
 inventory_unit = entity(
-	id =                        hashed_unique(int),
-	inventory_group_id =        inventory_group.id,
-	name =                      str,
-	integration_code =          optional(interned),
-	linked_partner_reserve =    optional(interned),
+    id =                        hashed_unique(int),
+    inventory_group_id =        inventory_group.id,
+    name =                      str,
+    integration_code =          optional(interned),
+    linked_partner_reserve =    optional(interned),
 )
 
 # Inventory Size
 inventory_size = entity(
-	id =                        hashed_unique(int),
-	name =                      interned,
-	partner_id =                partner.id,
-	inventory_unit_id =         inventory_unit.id,
-	inventory_source_id =       inventory_source.id,
+    id =                        hashed_unique(int),
+    name =                      interned,
+    partner_id =                partner.id,
+    inventory_unit_id =         inventory_unit.id,
+    inventory_source_id =       inventory_source.id,
     
     unit_integration_code =     optional(str),
     group_integration_code =    optional(str),
     
-	adnexus_id =                optional(int),
-	width =                     int,
-	height =                    int,
-	iframe_tag =                str,
-	linked_partner_reserve =    float,
-	script_tag =                str,
+    adnexus_id =                optional(int),
+    width =                     int,
+    height =                    int,
+    iframe_tag =                str,
+    linked_partner_reserve =    float,
+    script_tag =                str,
 ).index(
     'source',
     hashed_unique,
@@ -283,15 +303,15 @@ inventory_size_code = relation(
 
 # Publisher Line Item
 publisher_line_item = entity(
-	id =                                 hashed_unique(int),
+    id =                                 hashed_unique(int),
     partner_id =                         partner.id,
     insertion_order_id =                 insertion_order.id,
-	inventory_source_id =                inventory_source.id,
+    inventory_source_id =                inventory_source.id,
     default_trust_clients =              bool,
-	integration_code =                   optional(str),
-	pricing_amount =                     str,
-	pricing_type =                       interned,
-	reserve_cpm =                        optional(float),
+    integration_code =                   optional(str),
+    pricing_amount =                     str,
+    pricing_type =                       interned,
+    reserve_cpm =                        optional(float),
 ).index(
     'parter_integration',
     ordered,
@@ -310,23 +330,31 @@ publisher_line_item_default_creative = relation(
     ['publisher_line_item_id', 'width', 'height'],
 )
 
+# Publisher line item target options
+publisher_line_item_target_option = relation(
+    publisher_line_item_id = publisher_line_item.id,
+    name_id         = target_option_name.id,
+    value_id        = target_option_value.id,
+    exclude         = bool,
+)
+
 # Universal Site
 universal_site = entity(
-	id =                   hashed_unique(int),
-	name =                 str,
-	is_targetable =        bool,
-	target_option_value =  int,
+    id =                   hashed_unique(int),
+    name =                 str,
+    is_targetable =        bool,
+    target_option_value =  int,
 )
 
 universal_site_lookup = entity(
-	id =                       hashed_unique(int),
-	universal_site_id =        ordered(universal_site.id),
-	code =                     optional(int),
-	lookup_type =              interned,
-	url =                      optional(str),
+    id =                       hashed_unique(int),
+    universal_site_id =        ordered(universal_site.id),
+    code =                     optional(int),
+    lookup_type =              interned,
+    url =                      optional(str),
 ).index(
     'type_and_code',
-    hashed_unique,
+    hashed,
     ['lookup_type', 'code'],
 )
 

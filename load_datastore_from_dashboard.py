@@ -18,22 +18,30 @@ class DatastoreManager(object):
         self.budgets = self.db.aquire_table_budget()
         self.learning_budgets = self.db.aquire_table_learning_budget()
         self.insertion_orders = self.db.aquire_table_insertion_order()
+        self.target_option_names = self.db.aquire_table_target_option_name()
+        self.target_option_values = self.db.aquire_table_target_option_value()
         self.frequency_caps = self.db.aquire_table_frequency_cap()
         self.campaigns = self.db.aquire_table_campaign()
+        self.campaign_target_options = self.db.aquire_table_campaign_target_option()
         self.client_goals = self.db.aquire_table_client_goal()
         self.client_goal_pixel = self.db.aquire_table_client_goal_pixel()
         self.payment_items = self.db.aquire_table_payment_item()
         self.payment_item_pixel = self.db.aquire_table_payment_item_pixel()
         self.bidding_strategies = self.db.aquire_table_bidding_strategy()
         self.line_items = self.db.aquire_table_line_item()
-        
         self.inventory_sources = self.db.aquire_table_inventory_source()
         self.inventory_groups = self.db.aquire_table_inventory_group()
         self.inventory_units = self.db.aquire_table_inventory_unit()
         self.inventory_sizes = self.db.aquire_table_inventory_size()
         self.inventory_size_code = self.db.aquire_table_inventory_size_code()
-
         self.publisher_line_items = self.db.aquire_table_publisher_line_item()
+        self.publisher_line_item_default_creatives = self.db.aquire_table_publisher_line_item_default_creative()
+        self.publisher_line_item_target_options = self.db.aquire_table_publisher_line_item_target_option()
+        self.universal_sites = self.db.aquire_table_universal_site()
+        self.universal_site_lookups = self.db.aquire_table_universal_site_lookup()
+        
+        self.__next_topt_name_id = 1
+        self.__next_topt_value_id = 1
         return
     
     @staticmethod
@@ -48,6 +56,51 @@ class DatastoreManager(object):
         
         tbl.replace_id(d['id'], kls( **d))
         return d['id']
+    
+    def _load_target_options(self, arg_bag, target_options, kls, tbl):
+        
+        for topt_name, topt_values in target_options.iteritems():
+            
+            # Intern topt name string
+            tn = self.target_option_names.get_name(topt_name)
+            if not tn:
+                tn = datastore.target_option_name(
+                    id = self.__next_topt_name_id, name = topt_name)
+                self.target_option_names.insert( tn)
+                self.__next_topt_name_id += 1
+            
+            arg_bag['name_id'] = tn.id
+            
+            if topt_values[1] == True:
+                arg_bag['exclude'] = False
+                self._load_target_option_vals(arg_bag, topt_values[0], kls, tbl)
+            elif topt_values[1] == False:
+                arg_bag['exclude'] = True
+                self._load_target_option_vals(arg_bag, topt_values[0], kls, tbl)
+            else:
+                arg_bag['exclude'] = False
+                self._load_target_option_vals(arg_bag, topt_values[0], kls, tbl)
+                arg_bag['exclude'] = True
+                self._load_target_option_vals(arg_bag, topt_values[1], kls, tbl)
+        
+        return
+    
+    def _load_target_option_vals(self, arg_bag, topt_values, kls, tbl):
+        
+        for topt_val in topt_values:
+            
+            # Intern topt value string
+            tv = self.target_option_values.get_value(topt_val)
+            if not tv:
+                tv = datastore.target_option_value(
+                    id = self.__next_topt_value_id, value = topt_val)
+                self.target_option_values.insert( tv)
+                self.__next_topt_value_id += 1
+            
+            arg_bag['value_id'] = tv.id
+            tbl.insert( kls( **arg_bag))
+        
+        return
     
     def load_partner(self, inst):
         inst = inst['fields']
@@ -75,7 +128,6 @@ class DatastoreManager(object):
     
     def load_creative(self, inst):
         inst = inst['fields']
-        # creative's client is incomplete
         inst['client_id'] = inst['client']['pk']
         return self._freplace(self.creatives, datastore.creative, inst)
     
@@ -169,6 +221,15 @@ class DatastoreManager(object):
         
         for bid_strat in inst['bidding_strategies']:
             bid_strat_id = self.load_bidding_strategy(bid_strat)
+        
+        # Campaign target options come down with each line item
+        self.campaign_target_options.delete_campaign_id( inst['campaign_id'])
+        arg_bag = {'campaign_id': inst['campaign_id']}
+        self._load_target_options(
+            arg_bag, inst['target_options'],
+            datastore.campaign_target_option,
+            self.campaign_target_options
+        )
         return id
     
     def load_inventory_source(self, inst):
@@ -215,8 +276,44 @@ class DatastoreManager(object):
         self.move(inst, 'partner', 'partner_id')
         self.move(inst, 'insertion_order', 'insertion_order_id')
         self.move(inst, 'inventory_source', 'inventory_source_id')
-        return self._freplace(self.publisher_line_items, datastore.publisher_line_item, inst)
-
+        
+        id = self._freplace(self.publisher_line_items, datastore.publisher_line_items, inst)
+        
+        for dc_inst in inst['default_creatives'].values():
+            self.load_publisher_line_item_default_creative(dc_inst)
+        
+        # Target options
+        self.publisher_line_item_target_option.delete_publisher_line_item_id( id)
+        arg_bag = {'publisher_line_item_id': id}
+        self._load_target_options(
+            arg_bag, inst['target_options'],
+            datastore.publisher_line_item_target_option,
+            self.publisher_line_item_target_options
+        )
+        return
+    
+    def load_publisher_line_item_default_creative(self, inst):
+        inst = inst['fields']
+        self.move(inst, 'creative', 'creative_id')
+        self.move(inst, 'publisher_line_item', 'publisher_line_item_id')
+        return self._freplace(self.publisher_line_item_default_creatives,
+            datastore.publisher_line_item_default_creative, inst)
+    
+    def load_universal_site(self, inst):
+        inst = inst['fields']
+        
+        id = self._freplace(self.universal_sites, datastore.universal_site, inst)
+        
+        # Update lookups
+        self.universal_site_lookups.delete_universal_site_id( id)
+        for lookup in inst['lookups']:
+            self.load_universal_site_lookup(lookup)
+        return id
+    
+    def load_universal_site_lookup(self, inst):
+        inst = inst['fields']
+        self._move(inst, 'universal_site', 'universal_site_id')
+        return self._freplace(self.universal_site_lookups, datastore.universal_site_lookup, inst)
 
 dstore = DatastoreManager()
 
@@ -259,4 +356,7 @@ for o in cjson.decode(open('../dumps/inventory_units.dump').read()):
 
 for o in cjson.decode(open('../dumps/inventory_sizes.dump').read()):
     dstore.load_inventory_size(o)
+
+for o in cjson.decode(open('../dumps/universal_sites.dump').read()):
+    dstore.load_universal_site(o)
 
