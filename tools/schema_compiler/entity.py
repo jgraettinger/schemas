@@ -379,7 +379,7 @@ class Entity(object):
             def_tab_index = self._indices_by_name.values()[0]
         
         return def_tab_index
-
+    
     def render_cpp_table_declaration(self, r):
         
         # full set of table containers we'll need access to
@@ -406,8 +406,7 @@ class Entity(object):
         def_tab_index = self.__default_table_index()
         
         for index in self._indices_by_name.values():
-            if index != def_tab_index and not index.is_ordered: continue
-            # only create iterators for ordered indicies
+            if index != def_tab_index and not index.has_iterator: continue
             index.render_iterator_declaration(r)
         
         r.lines("""
@@ -487,8 +486,7 @@ class Entity(object):
         def_tab_index = self.__default_table_index()
         
         for index in self._indices_by_name.values():
-            if index != def_tab_index and not index.is_ordered: continue
-            # only create iterators for ordered indicies
+            if index != def_tab_index and not index.has_iterator: continue
             index.render_iterator_definition(r)
         
         r.lines("""
@@ -676,8 +674,7 @@ class Entity(object):
         def_tab_index = self.__default_table_index()
         
         for index in self._indices_by_name.values():
-            if index != def_tab_index and not index.is_ordered: continue
-            # only create iterators for ordered indicies
+            if index != def_tab_index and not index.has_iterator: continue
             index.render_iterator_binding(r)
         
         r.deindent().line('}')

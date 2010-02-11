@@ -21,6 +21,10 @@ class Index(object):
     def is_ordered(self):
         return self.type in (Ordered, OrderedUnique)
     
+    @property
+    def has_iterator(self):
+        return self.is_ordered or not self.is_unique
+
     def get_index_type(self):
         return '%s_container_t::index<%s::tag_%s>::type' % (
             self.entity._name, self.entity._name, self.name)
