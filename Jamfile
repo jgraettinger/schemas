@@ -23,4 +23,5 @@ if $(.user_path)
 import schema_builder ;
 
 build-project schemas ;
+build-project py_src ;
 
