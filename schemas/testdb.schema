@@ -1,0 +1,62 @@
+##
+_database_name = 'testdb'
+
+#######################
+## test_foreign_key.py
+
+A = entity(
+    id = ordered_unique(int),
+    desc = ordered(str),
+)
+
+B = entity(
+    id = ordered_unique(int),
+    A_id = A.id,
+)
+
+C = entity(
+    id     = hashed_unique(str),
+    par_id = optional(str),
+    B_id   = B.id,
+)
+
+# self-referential
+C.foreign_key(
+    cascade,
+    ['par_id'], [C.id],
+)
+
+#######################
+# test_replacement.py
+
+G = entity(
+    id = ordered_unique(int),
+)
+
+D = entity(
+    id   = ordered_unique(int),
+    G_id = G.id,
+    pk1  = int,
+    pk2  = ordered(str),
+    lk   = ordered_unique(str),
+).index(
+    'pk1_pk2',
+    ordered_unique,
+    ['pk1', 'pk2'],
+)
+
+E = entity(
+    id = ordered(int),
+    D_id = D.id,
+)
+
+F = entity(
+    id = ordered_unique(int),
+    D_pk1 = int,
+    D_pk2 = str,
+).foreign_key(
+    cascade,
+    ['D_pk1', 'D_pk2'],
+    [D.pk1, D.pk2],
+)
+
