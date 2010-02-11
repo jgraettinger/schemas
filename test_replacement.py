@@ -10,8 +10,7 @@ def throws(func, *args):
     
     assert False
 
-schemas.testdb._testdb.destroy('foobar')
-db = testdb('foobar', 1<<20)
+db = testdb()
 
 tab_G = db.aquire_table_G()
 tab_D = db.aquire_table_D()

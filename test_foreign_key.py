@@ -1,7 +1,7 @@
 
 from schemas.testdb import *
 
-db = testdb('test_foreign_key', 1 << 20)
+db = testdb()
 
 tab_a = db.aquire_table_A()
 tab_b = db.aquire_table_B()
