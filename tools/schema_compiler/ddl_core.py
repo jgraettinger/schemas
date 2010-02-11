@@ -31,16 +31,8 @@ class Boolean(BaseType):
     cpp_crtype = 'bool'
 class String(BaseType):
     # Unique narrow string
-    cpp_type   = 'string_t'
-    cpp_crtype = 'string_t const &'
-    
-    def get_extractor(self, py_obj):
-        return 'extract_string_t(%s, _alloc)' % py_obj
-    def get_def_ctor(self):
-        return 'string_t(_alloc)'
-    def to_python(self, inst):
-        return 'boost::python::str(%s.c_str(), %s.size())' % (
-            inst, inst)
+    cpp_type   = 'std::string'
+    cpp_crtype = 'std::string const &'
 
 ## Base for field wrappers which
 # declare additional properties

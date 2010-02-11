@@ -192,50 +192,42 @@ class Entity(object):
         r.line('class table_%s;' % self._name)
         r.line('typedef boost::shared_ptr<table_%s> table_%s_ptr_t;' % (
             self._name, self._name))
+        r.line('struct %s_container_t;' % self._name)
         return
     
     def render_cpp_row_storage(self, r):
         
         # field storage declarations & initializer list
-        field_decl, init_list = [], []
+        field_decl = []
         for fname, ftype in self._fields.iteritems():
             field_decl.append('%s %s;' % (
                 ftype.type.cpp_type.ljust(10), fname))
-            
-            # strings must be explicitly initialized w/ allocator
-            if isinstance(ftype.type, String):
-                init_list.append('%s(alloc)' % fname)
             
             if not ftype.opt: continue
             field_decl[-1] += ' // _opt[%d] & %d' % (
                 ftype.opt[0], 1 << ftype.opt[1])
         
-        field_decl = '\n'.join(' ' * 16 + i for i in field_decl)
-        init_list = ',\n'.join(' ' * 20 + i for i in init_list)
-        init_list = ':\n' + init_list if init_list else ''
+        field_decl = '\n'.join(' ' * 12 + i for i in field_decl)
         
         # storage for optional marker bits
         opt_decl = 'char _opt[%d];' % self._opt_bytes \
             if self._opt_bytes else ''
         
         r.lines("""
-            class %(name)s {
-            public:
-                
-                %(field_decl)s
-                
-                %(opt_decl)s
-                
-                %(name)s(const void_allocator_t & alloc)%(init_list)s
-                {}""", 12,
-            name = self._name,
-            field_decl = field_decl.lstrip(),
-            opt_decl   = opt_decl,
-            init_list  = init_list,
+        class %(name)s {
+        public:
+            
+            %(field_decl)s
+            
+            %(opt_decl)s
+        """, 8,
+        name = self._name,
+        field_decl = field_decl.lstrip(),
+        opt_decl   = opt_decl,
         ).indent()
         
         # tags for indicies over entity
-        r.line().line('// index name tags')
+        r.line('// index name tags')
         for ind_name, ind in self._indices_by_name.iteritems():
             r.line('struct tag_%s{};' % ind_name)
         
@@ -287,7 +279,8 @@ class Entity(object):
     
     def render_cpp_container(self, r):
         
-        r.line('typedef boost::multi_index_container<').indent()
+        r.line('struct %s_container_t : public' % self._name).indent()
+        r.line('boost::multi_index_container<')
         # class of storage
         r.line('%s,' % (self._name,))
         
@@ -336,13 +329,10 @@ class Entity(object):
         r.unputc()
         
         # close indexed_by
-        r.deindent().line('>,')
-        # declare shared-memory allocator
-        r.line('boost::interprocess::allocator<%s::%s, segment_manager_t>' % (
-            self._name, self._name))
+        r.deindent().line('>')
         
-        # close container, typedef to entity name
-        r.deindent().line('> %s_container_t;' % self._name).line()
+        # close struct
+        r.deindent().line('> { };').line()
         return
     
     def get_referenced(self):
@@ -392,14 +382,12 @@ class Entity(object):
 
     def render_cpp_table_declaration(self, r):
         
-        # full set of table containers/mutexes we'll need access to
+        # full set of table containers we'll need access to
         held = self.__get_held_names()
         
-        # containers & mutexes managed by this table
+        # containers managed by this table
         containers = ['%s_container_t & _%s;' % (i,i) for i in held]
-        mutexes    = ['mutex_t & _%s_mutex;' % i for i in held]
         containers = '\n'.join(' ' * 12 + i for i in containers)
-        mutexes    = '\n'.join(' ' * 12 + i for i in mutexes)
         
         # containers this table will delete from
         predelete  = ['size_t _pre_delete_%s(const %s &);' % (i,i) for i in \
@@ -409,12 +397,10 @@ class Entity(object):
         # constructor arguments of this table
         ctor = [
             'const %s::ptr_t & db' % self._database._name,
-            'const void_allocator_t & alloc',
             'const boost::python::object & klass',
         ]
-        ctor.extend('mutex_t & %s_mutex' % i for i in held)
         ctor.extend('%s_container_t &' % i for i in held)
-        ctor = ',\n'.join(' ' * 20 + i for i in ctor)
+        ctor = ',\n'.join(' ' * 16 + i for i in ctor)
         
         # default iterator type for whole-table iteration
         def_tab_index = self.__default_table_index()
@@ -434,18 +420,7 @@ class Entity(object):
             
             ~table_%(name)s();
             
-            void read_lock();
-            void write_lock();
-            void delete_lock();
-            
-            void read_unlock();
-            void write_unlock();
-            void delete_unlock();
-            
             %(tab_iter_type)s iter();
-            
-            int is_locked()
-            { return _lock_state; }
             
             void insert(const boost::python::object &);
             
@@ -467,21 +442,13 @@ class Entity(object):
             );
             
             %(dbname)s::ptr_t _owning_db;
-            void_allocator_t _alloc;
             boost::python::object _klass;
-            
-            enum {
-                UNLOCKED = 0,
-                READ     = 1,
-                WRITE    = 2,
-                DELETE   = 4
-            } _lock_state;
-            
-            %(mutexes)s
             
             %(containers)s
             
             %(predelete)s
+            
+            static %(name)s_container_t * _new_instance();
             
             friend class %(dbname)s;
         };
@@ -489,7 +456,6 @@ class Entity(object):
         name    = self._name,
         dbname  = self._database._name,
         ctor    = ctor.lstrip(),
-        mutexes = mutexes.lstrip(),
         containers = containers.lstrip(),
         predelete  = predelete.lstrip(),
         tab_iter_type = def_tab_index.get_iterator_type(),
@@ -498,52 +464,25 @@ class Entity(object):
     
     def render_cpp_table_definition(self, r):
         
-        # full set of table containers/mutexes we'll need access to
+        # full set of table containers we'll need access to
         held = self.__get_held_names()
         
         # constructor arguments of this table
         ctor = [
             'const %s::ptr_t & db' % self._database._name,
-            'const void_allocator_t & alloc',
             'const boost::python::object & klass',
         ]
-        ctor.extend('mutex_t & %s_mutex' % i for i in held)
         ctor.extend('%s_container_t & %s_container' % (i,i) for i in held)
-        ctor = ',\n'.join(' ' * 16 + i for i in ctor)
+        ctor = ',\n'.join(' ' * 12 + i for i in ctor)
         
-        # compute initializer lists (tables/mutexes to aquire)
+        # compute initializer lists (tables to aquire)
         init_list = [
             '_owning_db(db)',
-            '_alloc(alloc)',
             '_klass(klass)',
-            '_lock_state(UNLOCKED)',
         ]
-        [init_list.append('_%s_mutex( %s_mutex)' % (i,i)) for i in held]
-        [init_list.append('_%s( %s_container)' % (i,i))   for i in held]
-        init_list = ',\n'.join(' ' * 16 + i for i in init_list)
+        [init_list.append('_%s( %s_container)' % (i,i)) for i in held]
+        init_list = ',\n'.join(' ' * 12 + i for i in init_list)
         
-        # compute wlock, dlock, wunlock, & dunlock code
-        wlock   = {self._name: '_%s_mutex.lock();'   % self._name}
-        wunlock = {self._name: '_%s_mutex.unlock();' % self._name}
-        dlock   = {self._name: '_%s_mutex.lock();'   % self._name}
-        dunlock = {self._name: '_%s_mutex.unlock();' % self._name}
-        
-        # tables owning rows referenced by this table are read-locked during writes
-        for fent in self.__get_referenced_names():
-            wlock[fent]   = '_%s_mutex.lock_sharable();' % fent
-            wunlock[fent] = '_%s_mutex.unlock_sharable();' % fent
-        
-        # tables recursively referencing this table are write-locked during deletes
-        for fent in self.__get_referencing_names():
-            dlock[fent]   = '_%s_mutex.lock();' % fent
-            dunlock[fent] = '_%s_mutex.unlock();' % fent
-        
-        # sort by entity name => we always obtain & relase locks in the same order
-        wlock   = '\n'.join(' ' * 16 + i[1] for i in sorted(wlock.iteritems()))
-        wunlock = '\n'.join(' ' * 16 + i[1] for i in sorted(wunlock.iteritems()))
-        dlock   = '\n'.join(' ' * 16 + i[1] for i in sorted(dlock.iteritems()))
-        dunlock = '\n'.join(' ' * 16 + i[1] for i in sorted(dunlock.iteritems()))
-       
         # default iterator type for whole-table iteration
         def_tab_index = self.__default_table_index()
         
@@ -553,109 +492,35 @@ class Entity(object):
             index.render_iterator_definition(r)
         
         r.lines("""
-            table_%(name)s::table_%(name)s(
-                %(ctor)s
-            ) :
-                %(init_list)s
-            { }
-            
-            table_%(name)s::~table_%(name)s(){
-                
-                // release lingering locks
-                if(_lock_state == READ)
-                    read_unlock();
-                else if(_lock_state == WRITE)
-                    write_unlock();
-                else if(_lock_state == DELETE)
-                    delete_unlock();
-            }
-            
-            void table_%(name)s::read_lock(){
-                if(_lock_state)
-                {
-                    throw std::logic_error(
-                        "table_%(name)s::read_lock(): already locked");
-                }
-                _%(name)s_mutex.lock_sharable();
-                _lock_state = READ;
-            }
-            
-            void table_%(name)s::read_unlock(){
-                if(_lock_state != READ)
-                {
-                    throw std::logic_error(
-                        "table_%(name)s::read_unlock(): not read-locked");
-                }
-                _%(name)s_mutex.unlock_sharable();
-                _lock_state = UNLOCKED;
-            }
-            
-            void table_%(name)s::write_lock(){
-                if(_lock_state)
-                {
-                    // force user to aquire locks in proper order
-                    throw std::logic_error(
-                        "table_%(name)s::write_lock(): already locked");
-                }
-                %(wlock)s
-                _lock_state = WRITE;
-            }
-           
-            void table_%(name)s::write_unlock(){
-                if(_lock_state != WRITE)
-                {
-                    throw std::logic_error(
-                        "table_%(name)s::write_unlock(): not write-locked");
-                }
-                %(wunlock)s
-                _lock_state = UNLOCKED;
-            }
-
-            void table_%(name)s::delete_lock(){
-                if(_lock_state)
-                {
-                    // force user to aquire locks in proper order
-                    throw std::logic_error(
-                        "%(name)s::delete_lock(): already locked");
-                }
-                %(dlock)s
-                _lock_state = DELETE;
-            }
-            
-            void table_%(name)s::delete_unlock(){
-                if(_lock_state != DELETE)
-                {
-                    throw std::logic_error(
-                        "table_%(name)s::delete_unlock(): not delete-locked");
-                }
-                %(dunlock)s
-                _lock_state = UNLOCKED;
-            }
-
-            %(tab_iter_type)s table_%(name)s::iter(){
-                if(!_lock_state)
-                {
-                    throw std::logic_error(
-                        "table_%(name)s: not locked");
-                }
-                
-                return %(tab_iter_type)s(
-                    %(get_def_index)s.begin(),
-                    %(get_def_index)s.end(),
-                    shared_from_this()
-                );
-            }
-            """, 12,
-            name = self._name,
-            dbname = self._database._name,
-            ctor   = ctor.lstrip(),
-            init_list = init_list.lstrip(),
-            wlock   = wlock.lstrip(),
-            wunlock = wunlock.lstrip(),
-            dlock   = dlock.lstrip(),
-            dunlock = dunlock.lstrip(),
-            tab_iter_type = def_tab_index.get_iterator_type(),
-            get_def_index = def_tab_index.get_index(),
+        table_%(name)s::table_%(name)s(
+            %(ctor)s
+        ) :
+            %(init_list)s
+        { }
+        
+        table_%(name)s::~table_%(name)s() { }
+        
+        %(tab_iter_type)s table_%(name)s::iter()
+        {
+            return %(tab_iter_type)s(
+                %(get_def_index)s.begin(),
+                %(get_def_index)s.end(),
+                shared_from_this()
+            );
+        }
+        
+        %(name)s_container_t * table_%(name)s::_new_instance()
+        {
+            return new %(name)s_container_t();
+        }
+        
+        """, 8,
+        name = self._name,
+        dbname = self._database._name,
+        ctor   = ctor.lstrip(),
+        init_list = init_list.lstrip(),
+        tab_iter_type = def_tab_index.get_iterator_type(),
+        get_def_index = def_tab_index.get_index(),
         )
         
         self.render_pre_delete(self._name, r)
@@ -671,7 +536,7 @@ class Entity(object):
     
     def render_cpp_database_members(self, r):
         
-        # full set of table containers/mutexes we'll need access to
+        # full set of table containers we'll need access to
         held = self.__get_held_names()
         
         # define aquire_table_$name()
@@ -681,19 +546,11 @@ class Entity(object):
         r.line('return table_%s::ptr_t( new table_%s(' % (
             self._name, self._name)).indent()
         r.line('shared_from_this(),')
-        r.line('_alloc,')
         r.line('_klass_dict["%s"],' % self._name)
-        
-        # passes mutex's first
-        for ent in held:
-            r.line('*_shmemory.find_or_construct<mutex_t>(').indent()
-            r.line('"%s_mutex")(),' % ent).deindent()
         
         # then containers
         for ent in held:
-            r.line('*_shmemory.find_or_construct<%s_container_t>(' % ent).indent()
-            r.line('"%s_container")(' % ent)
-            r.line('%s_container_t::ctor_args_list(), _alloc),' % ent).deindent()
+            r.line('*_%s_container,' % ent)
         
         r.unputc().deindent().line('));')
         r.deindent().line('}')
@@ -727,13 +584,8 @@ class Entity(object):
         r.lines("""
         void table_%(name)s::insert(const boost::python::object & o)
         {
-            if(_lock_state != WRITE)
-            {
-                throw std::logic_error("table_%(name)s::insert(): "
-                    "not write-locked");
-            }
             // extract python object into row storage
-            %(name)s::%(name)s t(_alloc);
+            %(name)s::%(name)s t;
         """, 8,
         name = self._name,
         ).indent()
@@ -781,7 +633,7 @@ class Entity(object):
         r.line('return count;')
         r.deindent().line('}')
         return
-
+    
     def render_cpp_to_python_definition(self, r):
         r.line('boost::python::object table_%s::to_python(const %s & t)' % (
             self._name, self._name)).line('{').indent()
@@ -811,12 +663,6 @@ class Entity(object):
                 table_%(name)s::ptr_t,
                 boost::noncopyable
             >("table_%(name)s", boost::python::no_init)
-            .def("read_lock",     &table_%(name)s::read_lock)
-            .def("write_lock",    &table_%(name)s::write_lock)
-            .def("delete_lock",   &table_%(name)s::delete_lock)
-            .def("read_unlock",   &table_%(name)s::read_unlock)
-            .def("write_unlock",  &table_%(name)s::write_unlock)
-            .def("delete_unlock", &table_%(name)s::delete_unlock)
             .def("insert",        &table_%(name)s::insert)
             .def("__iter__",      &table_%(name)s::iter)""",
         8, name = self._name,

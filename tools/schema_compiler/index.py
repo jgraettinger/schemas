@@ -69,9 +69,6 @@ class Index(object):
         
         r.lines("""
         boost::python::object %(iter_name)s::next() {
-            if(!_table->is_locked())
-            { throw std::logic_error("table_%(ent_name)s: not locked"); }
-            
             if(_it == _end)
             {
                 PyErr_SetObject(PyExc_StopIteration, Py_None);
@@ -308,12 +305,6 @@ class Index(object):
                 const boost::python::object & lower,
                 const boost::python::object & upper)
             {
-                if(_lock_state != DELETE)
-                {
-                    throw std::logic_error("table_%(ent_name)s::"
-                        "delete_range_%(ind_name)s(): not delete-locked");
-                }
-                
                 %(key_type)s lkey = %(key_type)s(
                     %(lkey_ex)s);
                 %(key_type)s ukey = %(key_type)s(
@@ -349,12 +340,6 @@ class Index(object):
         size_t table_%(ent_name)s::delete_%(ind_name)s(
             const boost::python::object & o)
         {
-            if(_lock_state != DELETE)
-            {
-                throw std::logic_error("table_%(ent_name)s::"
-                    "delete_%(ind_name)s(): not delete-locked");
-            }
-            
             size_t count = 0;
         """, 8,
         ent_name = self.entity._name,
@@ -389,12 +374,6 @@ class Index(object):
             boost::python::object table_%(ent_name)s::get_%(ind_name)s(
                 const boost::python::object & o)
             {
-                if(!_lock_state)
-                {
-                    throw std::logic_error("table_%(ent_name)s::"
-                        "get_%(ind_name)s(): not locked");
-                }
-                
                 %(ind_type)s::const_iterator it(
                     %(ind_get)s.find(
                         %(okey_ex)s)
@@ -414,12 +393,6 @@ class Index(object):
             %(iter_name)s table_%(ent_name)s::with_%(ind_name)s(
                 const boost::python::object & o)
             {
-                if(!_lock_state)
-                {
-                    throw std::logic_error("table_%(ent_name)s::"
-                        "with_%(ind_name)s(): not locked");
-                }
-                
                 std::pair<
                     %(ind_type)s::const_iterator,
                     %(ind_type)s::const_iterator
@@ -438,12 +411,6 @@ class Index(object):
             r.lines("""
             %(iter_name)s table_%(ent_name)s::by_%(ind_name)s()
             {
-                if(!_lock_state)
-                {
-                    throw std::logic_error("table_%(ent_name)s::"
-                        "by_%(ind_name)s(): not locked");
-                }
-
                 return %(iter_name)s(
                     %(ind_get)s.begin(),
                     %(ind_get)s.end(),
@@ -455,12 +422,6 @@ class Index(object):
                 const boost::python::object & lower,
                 const boost::python::object & upper)
             {
-                if(!_lock_state)
-                {
-                    throw std::logic_error("table_%(ent_name)s::"
-                        "range_%(ind_name)s(): not locked");
-                }
-                
                 return %(iter_name)s(
                     %(ind_get)s.lower_bound(
                         %(lkey_ex)s),
@@ -519,7 +480,7 @@ class Index(object):
             }
             
             // extract python object into row storage
-            %(ent_name)s::%(ent_name)s t(_alloc);
+            %(ent_name)s::%(ent_name)s t;
         """, 8,
         ind_type  = self.get_index_type(),
         ind_get   = self.get_index(),

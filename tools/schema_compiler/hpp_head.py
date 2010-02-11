@@ -2,9 +2,6 @@
 hpp_head = """
 #define BOOST_PYTHON_MAX_ARITY 35
 
-#include <boost/interprocess/managed_shared_memory.hpp>
-#include <boost/interprocess/sync/interprocess_upgradable_mutex.hpp>
-#include <boost/interprocess/containers/string.hpp>
 #include <boost/multi_index_container.hpp>
 #include <boost/multi_index/hashed_index.hpp>
 #include <boost/multi_index/ordered_index.hpp>
@@ -18,34 +15,6 @@ hpp_head = """
 #include <boost/python.hpp>
 
 typedef long long _int64;
-
-// common boost IPC types
-typedef boost::interprocess::managed_shared_memory                   managed_memory_t;
-typedef boost::interprocess::managed_shared_memory::segment_manager  segment_manager_t;
-typedef boost::interprocess::allocator<void, segment_manager_t>      void_allocator_t;
-typedef boost::interprocess::interprocess_upgradable_mutex           mutex_t;
-
-// shared-memory string type
-typedef boost::interprocess::allocator<
-    char, segment_manager_t
-> char_allocator_t;
-typedef boost::interprocess::basic_string<
-    char, std::char_traits<char>, char_allocator_t
-> string_t;
-
-inline string_t extract_string_t(const boost::python::object & o,
-    const void_allocator_t & alloc)
-{
-    if(!PyString_Check(o.ptr()))
-    {
-        throw std::logic_error("extract_string_t():"
-            " requires a string type");
-    }
-    
-    const char * str = PyString_AS_STRING(o.ptr());
-    size_t len = PyString_GET_SIZE(o.ptr());
-    return string_t(str, str + len, alloc);
-}
 
 // generalized tuple hashing
 template<typename Tuple>
@@ -63,7 +32,6 @@ inline size_t _tuple_hash<Tuple>::operator()(const Tuple & t) const {
     //  would wrap string references in boost::ref
     
     using namespace boost;
-    using namespace boost::interprocess_container;
     return (r << 5) + (r >> 3) + hash_value(t.get_head());
 }
 template<>

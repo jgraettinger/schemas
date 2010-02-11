@@ -35,8 +35,8 @@ def write_py_init(db, path_out):
     del %(db_name)s_types
     
     # Encapsulate presenting constructor with python entity types
-    def %(db_name)s(name, size):
-        return _%(db_name)s(name, size, __pytypes.__dict__)
+    def %(db_name)s():
+        return _%(db_name)s(__pytypes.__dict__)
     """, 4,
     db_name = db._name,
     )
@@ -70,8 +70,12 @@ def write_database_cpp(database, path_out):
     r.line('// forward declarations')
     for ent in database._entities.values():
         ent.render_cpp_fwd_declaration(r)
+    
+    r.line().line('// row storage')
     for ent in database._entities.values():
         ent.render_cpp_row_storage(r)
+    
+    r.line().line('// row containers')
     for ent in database._entities.values():
         ent.render_cpp_container(r)
     
@@ -104,17 +108,17 @@ def write_table_cpp(database, ent, path_out):
     [ related_ents.add(e) for e in ent.get_referencing() ]
     related_ents = sorted(related_ents, key = lambda e: e._name)
     
-    for r_ent in related_ents:
-        r_ent.render_cpp_fwd_declaration(r)
-    for r_ent in related_ents:
-        r_ent.render_cpp_row_storage(r)
-    for r_ent in related_ents:
-        r_ent.render_cpp_container(r)
-    
-    # Fwd declaration of all table types;
-    #  required for database declaration
+    r.line('// forward declarations')
     for r_ent in database._entities.values():
         r_ent.render_cpp_fwd_declaration(r)
+    
+    r.line().line('// row storage of related tables')
+    for r_ent in related_ents:
+        r_ent.render_cpp_row_storage(r)
+    
+    r.line().line('// row containers of related tables')
+    for r_ent in related_ents:
+        r_ent.render_cpp_container(r)
     
     r.line()
     database.render_cpp_declaration(r)

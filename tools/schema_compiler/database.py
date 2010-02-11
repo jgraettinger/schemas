@@ -44,10 +44,8 @@ class Database(object):
                 %(dbname)s::ptr_t,
                 boost::noncopyable
             >("%(dbname)s",
-                boost::python::init<const std::string &, size_t,
-                    const boost::python::object &>())
-            .def("destroy", &%(dbname)s::destroy)
-            .staticmethod("destroy");""",
+                boost::python::init<
+                    const boost::python::object &>());""",
         8, dbname = self._name).indent()
         
         for ent in self._entities.keys():
@@ -64,53 +62,56 @@ class Database(object):
             'table_%s_ptr_t aquire_table_%s();' % (i,i) \
                 for i in self._entities.keys()
         )
-        aq_tables = '\n'.join(' ' * 16 + i for i in aq_tables)
+        aq_tables = '\n'.join(' ' * 12 + i for i in aq_tables)
+        
+        containers = sorted(
+            'std::auto_ptr<%s_container_t> _%s_container;' % (
+                i, i) for i in self._entities.keys()
+        )
+        containers = '\n'.join(' ' * 12 + i for i in containers)
         
         r.lines("""
-            class %(dbname)s :
-                public boost::enable_shared_from_this<%(dbname)s>
-            {
-            public:
-                
-                typedef boost::shared_ptr<%(dbname)s> ptr_t;
-                
-                %(dbname)s(const std::string & name, size_t size,
-                    const boost::python::object & klass_dict);
-                
-                static void destroy(const std::string & name);
-                
-                %(aq_tables)s
-                
-            private:
-                std::string           _name;
-                boost::python::object _klass_dict;
-                managed_memory_t      _shmemory;
-                void_allocator_t      _alloc;
-            };
-        """, 12,
+        class %(dbname)s :
+            public boost::enable_shared_from_this<%(dbname)s>
+        {
+        public:
+            
+            typedef boost::shared_ptr<%(dbname)s> ptr_t;
+            
+            %(dbname)s(const boost::python::object & klass_dict);
+            
+            %(aq_tables)s
+            
+        private:
+            
+            boost::python::object _klass_dict;
+            %(containers)s
+        };
+        """, 8,
             dbname = self._name,
             aq_tables = aq_tables.lstrip(),
+            containers = containers.lstrip(),
         )
         return
     
     def render_cpp_definition(self, r):
         
         r.lines("""
-            %(dbname)s::%(dbname)s(
-                const std::string & name, size_t size,
-                const boost::python::object & klass_dict
-            ) :
-                _name(name),
-                _klass_dict(klass_dict),
-                _shmemory(boost::interprocess::open_or_create, name.c_str(), size),
-                _alloc(_shmemory.get_segment_manager())
-            { }
-            
-            void %(dbname)s::destroy(const std::string & name)
-            { boost::interprocess::shared_memory_object::remove(name.c_str()); }
-        """, 12,
+        %(dbname)s::%(dbname)s(const boost::python::object & klass_dict)
+          :
+            _klass_dict(klass_dict),""", 8,
             dbname = self._name
+        ).indent()
+        
+        containers = sorted(
+            '_%s_container( table_%s::_new_instance()),' % (
+                i, i) for i in self._entities
         )
+        for cont in containers:
+            r.line(cont)
+        
+        r.unputc().deindent()
+        r.line('{ }')
         return
     
     @staticmethod
