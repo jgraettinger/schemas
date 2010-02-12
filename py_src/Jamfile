@@ -1,3 +1,0 @@
-install install
- : [ glob-tree *.py : .git ]
-  : <location>$(INSTALL) <install-source-root>. ;

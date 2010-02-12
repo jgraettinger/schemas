@@ -12,16 +12,15 @@ schemas = [
     'datastore',
 ]
 
-dependencies = [
-]
+dependencies = []
 
 def invoke_schema_compiler(schema):
     
     args = (
         sys.executable,
         "tools/schema_compiler/schema_compiler.py",
-        'schemas/%s.schema' % schema,
-        "build/schemas/%s" % schema,
+        'schema_defs/%s.schema' % schema,
+        "schemas/%s" % schema,
     )
     
     print 'Running: %s' % ' '.join(args)
@@ -41,17 +40,12 @@ def invoke_schema_compiler(schema):
     cpp_sources = filter(lambda i: i.endswith('.cpp'), sources)
     return (py_sources, cpp_sources)
 
-package_dir = {'': 'py_src'}
 extensions = []
-packages = ['schemas', 'tests']
+packages = []
 
 for schema in schemas:
     
     py_sources, cpp_sources = invoke_schema_compiler(schema)
-    build_base = py_sources[0][:py_sources[0].rindex('/')]
-    
-    # mapping from schema package => build location
-    package_dir['schemas.%s' % schema] = py_sources[0][:py_sources[0].rindex('/')]
     
     packages.append('schemas.%s' % schema)
     extensions.append(
@@ -59,12 +53,13 @@ for schema in schemas:
             'schemas.%s._%s' % (schema, schema),
             cpp_sources,
             libraries = ['boost_python'],
+            extra_compile_args = ['-O3'], # optimize
+            extra_link_args = ['-s'], # strip debugging info
         ))
 
 params = {
     'name':             'schemas',
     'version':          VERSION,
-    'package_dir':      package_dir,
     'packages':         packages,
     'ext_modules':      extensions,
     'zip_safe':         False,
