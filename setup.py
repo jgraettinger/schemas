@@ -11,7 +11,6 @@ schemas = [
     'testdb',
     'datastore',
 ]
-
 dependencies = []
 
 def invoke_schema_compiler(schema):
@@ -46,20 +45,18 @@ if '--compile-schemas' in sys.argv:
         open('schemas/%s/generated_sources.py' % schema, 'w').write(repr(sources))
     sys.argv.remove('--compile-schemas')
 
-packages = []
+
+packages = ['schemas']
 extensions = []
 
 for schema in schemas:
     
     packages.append('schemas.%s' % schema)
-    
-    sources = eval(open('schemas/%s/generated_sources.py' % schema).read())
-    
     extensions.append(
         Extension(
             'schemas.%s._%s' % (schema, schema),
-            sources,
-            libraries = ['boost_python'],
+            eval(open('schemas/%s/generated_sources.py' % schema).read()),
+            libraries = ['boost_python-py25' if sys.version.startswith('2.5') else 'boost_python-py26'],
             extra_compile_args = ['-O3'], # optimize
             extra_link_args = ['-s'], # strip debugging info
         ))
