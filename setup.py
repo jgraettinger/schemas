@@ -15,7 +15,6 @@ schemas = [
 dependencies = []
 
 def invoke_schema_compiler(schema):
-    
     args = (
         sys.executable,
         "tools/schema_compiler/schema_compiler.py",
@@ -38,20 +37,28 @@ def invoke_schema_compiler(schema):
     sources     = proc.stdout.read().strip().split('\n')
     py_sources  = filter(lambda i: i.endswith('.py'), sources)
     cpp_sources = filter(lambda i: i.endswith('.cpp'), sources)
-    return (py_sources, cpp_sources)
+    return cpp_sources
 
-extensions = []
+# Use to (re)-generate cpp sources; cannot be used within a source distribution
+if '--compile-schemas' in sys.argv:
+    for schema in schemas:
+        sources = invoke_schema_compiler(schema)
+        open('schemas/%s/generated_sources.py' % schema, 'w').write(repr(sources))
+    sys.argv.remove('--compile-schemas')
+
 packages = []
+extensions = []
 
 for schema in schemas:
     
-    py_sources, cpp_sources = invoke_schema_compiler(schema)
-    
     packages.append('schemas.%s' % schema)
+    
+    sources = eval(open('schemas/%s/generated_sources.py' % schema).read())
+    
     extensions.append(
         Extension(
             'schemas.%s._%s' % (schema, schema),
-            cpp_sources,
+            sources,
             libraries = ['boost_python'],
             extra_compile_args = ['-O3'], # optimize
             extra_link_args = ['-s'], # strip debugging info
