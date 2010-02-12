@@ -86,9 +86,11 @@ class DatastoreManager(object):
                 self._load_target_option_vals(arg_bag, topt_values[0], kls, tbl)
             else:
                 arg_bag['exclude'] = False
-                self._load_target_option_vals(arg_bag, topt_values[0], kls, tbl)
+                self._load_target_option_vals(arg_bag, [
+                    i for i,j in zip(*topt_values) if j], kls, tbl)
                 arg_bag['exclude'] = True
-                self._load_target_option_vals(arg_bag, topt_values[1], kls, tbl)
+                self._load_target_option_vals(arg_bag, [
+                    i for i,j in zip(*topt_values) if not j], kls, tbl)
         
         return
     
