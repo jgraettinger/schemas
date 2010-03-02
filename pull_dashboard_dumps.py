@@ -27,6 +27,7 @@ rest_paths = {
     'inventory_size':   '/inventory_sizes/?response_type=json',
     'publisher_line_item': '/publisher_lineitems/?target_options=True&response_type=json',
     'universal_site':   '/universal_sites/?response_type=json',
+    'target_option':    '/target_options/?name=country&response_type=json',
 }
 
 cjar = cookielib.CookieJar()
