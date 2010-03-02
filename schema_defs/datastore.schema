@@ -150,7 +150,7 @@ frequency_cap = entity(
 # Client Goal
 client_goal = entity(
     id =             ordered_unique(int),
-    campaign_id =    ordered_unique(campaign.id),
+    campaign_id =    campaign.id,
     amount =         optional(str),
     click_amount =   optional(str),
     click_window =   optional(int),
@@ -206,7 +206,6 @@ line_item = entity(
     
     campaign_id =                              campaign.id,
     creative_id =                              creative.id,
-    insertion_order_id =                       insertion_order.id,
     
     active =                                   ordered(bool),
     adnexus_active =                           bool,
@@ -224,7 +223,7 @@ line_item = entity(
     
 ).index(
     'campaign_and_creative',
-    ordered_unique,
+    ordered,
     ['campaign_id', 'creative_id'],
 )
 
@@ -273,7 +272,7 @@ inventory_size = entity(
     script_tag =             str,
 ).index(
     'source',
-    ordered_unique,
+    ordered,
     ['inventory_source_id', 'width', 'height'],
 )
 
@@ -287,7 +286,7 @@ inventory_size_code = relation(
     height =             int,
 ).index(
     'code',
-    ordered_unique,
+    ordered,
     ['is_group', 'integration_code', 'partner_id', 'width', 'height'],
 )
 
@@ -331,7 +330,7 @@ publisher_line_item_target_option = relation(
 universal_site = entity(
     id =                   ordered_unique(int),
     is_targetable =        bool,
-    target_option_value =  int,
+    target_option_value =  optional(int),
 )
 
 universal_site_lookup = entity(

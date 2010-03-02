@@ -5,11 +5,30 @@ import cjson
 
 from schemas import datastore
 
-http_base = "http://inst1.dev.dashboard.invitemedia.com"
-credentials = {'username': 'superuser', 'password': 'imim42'}
+#http_base = "http://inst1.dev.dashboard.invitemedia.com"
+#credentials = {'username': 'superuser', 'password': 'imim42'}
 
-#http_base = "http://ev3.dash.invitemedia.com:82"
-#credentials = {'username': 'internal_api_user', 'password': 'PMVCR24m'}
+http_base = "http://ev3.dash.invitemedia.com:1234"
+credentials = {'username': 'internal_api_user', 'password': 'PMVCR24m'}
+
+rest_paths = {
+    'partner':          '/partners/?response_type=json',
+    'client':           '/clients/?response_type=json',
+    'pixel':            '/pixels/?response_type=json',
+    'piggyback_pixel':  '/piggyback_pixels/?response_type=json',
+    'creative':         '/creatives/?response_type=json',
+    'budget':           '/budgets/?response_type=json',
+    'learning_budget':  '/learning_budgets/?response_type=json',
+    'insertion_order':  '/insertion_orders/?response_type=json',
+    'campaign':         '/campaigns/?response_type=json',
+    'line_item':        '/line_items/?target_options=True&response_type=json',
+    'inventory_source': '/inventory_sources/?response_type=json',
+    'inventory_group':  '/inventory_groups/?response_type=json',
+    'inventory_unit':   '/inventory_units/?response_type=json',
+    'inventory_size':   '/inventory_sizes/?response_type=json',
+    'publisher_line_item': '/publisher_lineitems/?target_options=True&response_type=json',
+    'universal_site':   '/universal_sites/?response_type=json',
+}
 
 class DatastoreManager(object):
     
@@ -49,12 +68,44 @@ class DatastoreManager(object):
         
         self.__next_topt_name_id = 1
         self.__next_topt_value_id = 1
+        self.__rest_attempts = set()
+        
+        # generate _check & load methods for core entity types
+        for ent_name, rest_path in rest_paths.iteritems():
+            self._bind_check_and_load(ent_name, rest_path)
         return
     
-    @staticmethod
-    def _move(d, old_name, new_name):
-        d[new_name] = d[old_name]
-        del d[old_name]
+    def _bind_check_and_load(self, ent_name, rest_path):
+        store = eval('self.store_%s' % ent_name)
+        
+        def load(id):
+            assert False # HACK
+            assert id not in self.__rest_attempts, 'Already attempted'
+            self.__rest_attempts.add(id)
+            content = request('%s&id=%d' % (rest_path, id))
+            return store( cjson.decode(content)[0])
+        
+        self.__dict__['load_%s' % ent_name] = load
+        
+        tab = self.__dict__['%ss' % ent_name]
+        
+        def check(o):
+            if o == None: return None
+            
+            # o is a model dictionary?
+            if isinstance(o, dict):
+                if tab.get_id(o['pk']):
+                    return o['pk']
+                else:
+                    return store(o)
+            
+            if tab.get_id(o):
+                return o
+            else:
+                return load(o)
+        
+        self.__dict__['_check_%s' % ent_name] = check
+        return
     
     @staticmethod
     def _freplace(tbl, kls, d):
@@ -64,7 +115,7 @@ class DatastoreManager(object):
         tbl.replace_id(d['id'], kls( **d))
         return d['id']
     
-    def _load_target_options(self, arg_bag, target_options, kls, tbl):
+    def _store_target_options(self, arg_bag, target_options, kls, tbl):
         
         for topt_name, topt_values in target_options.iteritems():
             
@@ -80,21 +131,21 @@ class DatastoreManager(object):
             
             if topt_values[1] == True:
                 arg_bag['exclude'] = False
-                self._load_target_option_vals(arg_bag, topt_values[0], kls, tbl)
+                self._store_target_option_vals(arg_bag, topt_values[0], kls, tbl)
             elif topt_values[1] == False:
                 arg_bag['exclude'] = True
-                self._load_target_option_vals(arg_bag, topt_values[0], kls, tbl)
+                self._store_target_option_vals(arg_bag, topt_values[0], kls, tbl)
             else:
                 arg_bag['exclude'] = False
-                self._load_target_option_vals(arg_bag, [
+                self._store_target_option_vals(arg_bag, [
                     i for i,j in zip(*topt_values) if j], kls, tbl)
                 arg_bag['exclude'] = True
-                self._load_target_option_vals(arg_bag, [
+                self._store_target_option_vals(arg_bag, [
                     i for i,j in zip(*topt_values) if not j], kls, tbl)
         
         return
     
-    def _load_target_option_vals(self, arg_bag, topt_values, kls, tbl):
+    def _store_target_option_vals(self, arg_bag, topt_values, kls, tbl):
         
         for topt_val in topt_values:
             
@@ -111,165 +162,151 @@ class DatastoreManager(object):
         
         return
     
-    def load_partner(self, inst):
+    def store_partner(self, inst):
         inst = inst['fields']
         # Flatten exchange permissions
         inst.update( inst['exchange_permissions'].iteritems())
         return self._freplace( self.partners, datastore.partner, inst)
     
-    def load_client(self, inst):
+    def store_client(self, inst):
         inst = inst['fields']
-        self._move(inst, 'partner', 'partner_id')
+        inst['partner_id'] = self._check_partner( inst['partner'])
         return self._freplace( self.clients, datastore.client, inst)
     
-    def load_pixel(self, inst):
+    def store_pixel(self, inst):
         inst = inst['fields']
-        self._move(inst, 'partner', 'partner_id')
-        self._move(inst, 'client', 'client_id')
+        inst['partner_id'] = self._check_partner( inst['partner'])
+        inst['client_id']  = self._check_client( inst['client'])
         id = self._freplace(self.pixels, datastore.pixel, inst)
         return
     
-    def load_piggyback_pixel(self, inst):
+    def store_piggyback_pixel(self, inst):
         inst['fields']['id'] = inst['pk']
         inst = inst['fields']
-        self._move(inst, 'pixel', 'pixel_id')
+        inst['pixel_id'] = self._check_pixel( inst['pixel'])
         return self._freplace(self.piggyback_pixels, datastore.piggyback_pixel, inst)
     
-    def load_creative(self, inst):
+    def store_creative(self, inst):
         inst = inst['fields']
-        inst['client_id'] = inst['client']['pk']
+        # creative embeddeds a stripped-down client instance
+        inst['client_id'] = self._check_client( inst['client']['pk'])
         return self._freplace(self.creatives, datastore.creative, inst)
     
-    def load_budget(self, inst):
+    def store_budget(self, inst):
         inst = inst['fields']
         return self._freplace(self.budgets, datastore.budget, inst)
     
-    def load_learning_budget(self, inst):
+    def store_learning_budget(self, inst):
         inst = inst['fields']
         return self._freplace(self.learning_budgets, datastore.learning_budget, inst)
     
-    def load_insertion_order(self, inst):
+    def store_insertion_order(self, inst):
         inst = inst['fields']
         
-        if isinstance(inst['client'], dict):
-            inst['client_id'] = self.load_client(inst['client'])
-        else:
-            self._move(inst, 'client', 'client_id')
-        
-        if isinstance(inst['budget'], dict):
-            inst['budget_id'] = self.load_budget(inst['budget'])
-        else:
-            self._move(inst, 'budget', 'budget_id')
-        
+        inst['client_id'] = self._check_client(inst['client'])
+        inst['budget_id'] = self._check_budget(inst['budget'])
         return self._freplace(self.insertion_orders, datastore.insertion_order, inst)
     
-    def load_campaign(self, inst):
+    def store_campaign(self, inst):
         inst = inst['fields']
-        inst['insertion_order_id'] = self.load_insertion_order(inst['insertion_order'])
-        inst['learning_budget_id'] = self.load_learning_budget(inst['learning_budget'])
-        inst['budget_id'] = self.load_budget(inst['budget'])
+        inst['insertion_order_id'] = self._check_insertion_order(inst['insertion_order'])
+        inst['learning_budget_id'] = self._check_learning_budget(inst['learning_budget'])
+        inst['budget_id'] = self._check_budget(inst['budget'])
         
         id = self._freplace(self.campaigns, datastore.campaign, inst)
         
         # These come down w/ the campaign each time
         self.frequency_caps.delete_campaign_id( id)
-        self.load_frequency_cap(inst['frequency_cap'])
+        self.store_frequency_cap(inst['frequency_cap'])
         
         self.client_goals.delete_campaign_id( id)
         for cgoal in inst['client_goals']:
-            self.load_client_goal(cgoal)
+            self.store_client_goal(cgoal)
         
         self.payment_items.delete_campaign_id( id)
         for pitem in inst['payment_items']:
-            self.load_payment_item(pitem)
+            self.store_payment_item(pitem)
         
         return 
     
-    def load_frequency_cap(self, inst):
+    def store_frequency_cap(self, inst):
         inst = inst['fields']
-        self._move(inst, 'campaign', 'campaign_id')
+        inst['campaign_id'] = self._check_campaign(inst['campaign'])
         return self._freplace(self.frequency_caps, datastore.frequency_cap, inst)
     
-    def load_client_goal(self, inst):
+    def store_client_goal(self, inst):
         inst = inst['fields']
-        self._move(inst, 'campaign', 'campaign_id')
+        inst['campaign_id'] = self._check_campaign(inst['campaign'])
         id = self._freplace(self.client_goals, datastore.client_goal, inst)
         
         # Update client goal => pixel mapping
         self.client_goal_pixel.delete_client_goal_id( id)
         if inst['pixel']:
+            self._check_pixel( inst['pixel'])
             self.client_goal_pixel.insert( datastore.client_goal_pixel(
                 client_goal_id = id, pixel_id = inst['pixel']))
         return id
     
-    def load_payment_item(self, inst):
+    def store_payment_item(self, inst):
         inst = inst['fields']
-        self._move(inst, 'campaign', 'campaign_id')
+        inst['campaign_id'] = self._check_campaign(inst['campaign'])
         id = self._freplace(self.payment_items, datastore.payment_item, inst)
         
         # Update payment item => pixel mapping
         self.payment_item_pixel.delete_payment_item_id( id)
         if inst['pixel']:
+            self._check_pixel( inst['pixel'])
             self.payment_item_pixel.insert( datastore.payment_item_pixel(
                 payment_item_id = id, pixel_id = inst['pixel']))
         return id
     
-    def load_bidding_strategy(self, inst):
+    def store_bidding_strategy(self, inst):
         inst = inst['fields']
-        self._move(inst, 'campaign', 'campaign_id')
+        inst['campaign_id'] = self._check_campaign(inst['campaign'])
         return self._freplace(self.bidding_strategies, datastore.bidding_strategy, inst)
     
-    def load_line_item(self, inst):
+    def store_line_item(self, inst):
         inst = inst['fields']
         
-        self._move(inst, 'campaign', 'campaign_id')
-        self._move(inst, 'creative', 'creative_id')
-        self._move(inst, 'insertion_order', 'insertion_order_id')
-        
-        # DIRTY HACK -- Dashboard DB currently violates creative/campaign
-        #  line item uniqueness. We have to account for it here.
-        temp_li = self.line_items.get_campaign_and_creative((inst['campaign_id'], inst['creative_id']))
-        if temp_li and temp_li.id != inst['id']:
-            print "Skipping %r" % inst
-            return
-        # End Hack
+        inst['campaign_id'] = self._check_campaign(inst['campaign'])
+        inst['creative_id'] = self._check_creative(inst['creative'])
         
         id = self._freplace(self.line_items, datastore.line_item, inst)
         
         for bid_strat in inst['bidding_strategies']:
-            bid_strat_id = self.load_bidding_strategy(bid_strat)
+            bid_strat_id = self.store_bidding_strategy(bid_strat)
         
         # Campaign target options come down with each line item
         self.campaign_target_options.delete_campaign_id( inst['campaign_id'])
         arg_bag = {'campaign_id': inst['campaign_id']}
-        self._load_target_options(
+        self._store_target_options(
             arg_bag, inst['target_options'],
             datastore.campaign_target_option,
             self.campaign_target_options
         )
         return id
     
-    def load_inventory_source(self, inst):
+    def store_inventory_source(self, inst):
         inst = inst['fields']
-        self._move(inst, 'partner', 'partner_id')
-        self._move(inst, 'piggyback_pixel', 'piggyback_pixel_id')
+        inst['partner_id'] = self._check_partner(inst['partner'])
+        inst['piggyback_pixel_id'] = self._check_piggyback_pixel(inst['piggyback_pixel'])
         return self._freplace(self.inventory_sources, datastore.inventory_source, inst)
     
-    def load_inventory_group(self, inst):
+    def store_inventory_group(self, inst):
         inst = inst['fields']
-        self._move(inst, 'inventory_source', 'inventory_source_id')
+        inst['inventory_source_id'] = self._check_inventory_source(inst['inventory_source'])
         return self._freplace(self.inventory_groups, datastore.inventory_group, inst)
     
-    def load_inventory_unit(self, inst):
+    def store_inventory_unit(self, inst):
         inst = inst['fields']
-        self._move(inst, 'inventory_group', 'inventory_group_id')
+        inst['inventory_group_id'] = self._check_inventory_group(inst['inventory_group'])
         return self._freplace(self.inventory_units, datastore.inventory_unit, inst)
     
-    def load_inventory_size(self, inst):
+    def store_inventory_size(self, inst):
         inst = inst['fields']
-        self._move(inst, 'partner', 'partner_id')
-        self._move(inst, 'inventory_unit', 'inventory_unit_id')
-        self._move(inst, 'inventory_source', 'inventory_source_id')
+        inst['partner_id'] = self._check_partner(inst['partner'])
+        inst['inventory_unit_id'] = self._check_inventory_unit(inst['inventory_unit'])
+        inst['inventory_source_id'] = self._check_inventory_source(inst['inventory_source'])
         
         id = self._freplace(self.inventory_sizes, datastore.inventory_size, inst)
         
@@ -280,42 +317,51 @@ class DatastoreManager(object):
         if ucode or gcode:
             self.inventory_size_code.insert( datastore.inventory_size_code(
                 inventory_size_id = id,
-                is_group = True if gcode else False,
-                integration_code = gcode or ucode,
+                is_group = False if ucode else True,
+                integration_code = ucode or gcode,
                 partner_id = inst['partner_id'],
-                width = inst['width'],
+                width  = inst['width'],
                 height = inst['height'],
             ))
         return id
     
-    def load_publisher_line_item(self, inst):
+    def store_publisher_line_item(self, inst):
         inst = inst['fields']
-        self._move(inst, 'partner', 'partner_id')
-        self._move(inst, 'inventory_source', 'inventory_source_id')
+        inst['partner_id'] = self._check_partner(inst['partner'])
+        inst['inventory_source_id'] = self._check_inventory_source(inst['inventory_source'])
         
         id = self._freplace(self.publisher_line_items, datastore.publisher_line_item, inst)
         
-        for dc_inst in inst['default_creatives'].values():
-            self.load_publisher_line_item_default_creative(dc_inst)
+        # Default creatives
+        self.publisher_line_item_default_creatives.delete_publisher_line_item_id( id)
+        for size, creative_id in inst['default_creatives'].iteritems():
+            self._check_creative( creative_id)
+            width, height = [int(i) for i in size.split('x')]
+            
+            self.publisher_line_item_default_creatives.insert(
+                datastore.publisher_line_item_default_creative(
+                    publisher_line_item_id = id,
+                    width = width, height = height, creative_id = creative_id))
         
         # Target options
         self.publisher_line_item_target_options.delete_publisher_line_item_id( id)
         arg_bag = {'publisher_line_item_id': id}
-        self._load_target_options(
+        self._store_target_options(
             arg_bag, inst['target_options'],
             datastore.publisher_line_item_target_option,
             self.publisher_line_item_target_options
         )
         return
     
-    def load_publisher_line_item_default_creative(self, inst):
+    def store_publisher_line_item_default_creative(self, inst):
         inst = inst['fields']
-        self.move(inst, 'creative', 'creative_id')
-        self.move(inst, 'publisher_line_item', 'publisher_line_item_id')
+        inst['creative_id'] = self._check_creative(inst['creative'])
+        inst['publisher_line_item_id'] = \
+            self._check_publisher_line_item(inst['publisher_line_item'])
         return self._freplace(self.publisher_line_item_default_creatives,
             datastore.publisher_line_item_default_creative, inst)
     
-    def load_universal_site(self, inst):
+    def store_universal_site(self, inst):
         inst = inst['fields']
         
         id = self._freplace(self.universal_sites, datastore.universal_site, inst)
@@ -323,12 +369,13 @@ class DatastoreManager(object):
         # Update lookups
         self.universal_site_lookups.delete_universal_site_id( id)
         for lookup in inst['lookups']:
-            self.load_universal_site_lookup(lookup)
+            self.store_universal_site_lookup(lookup)
         return id
     
-    def load_universal_site_lookup(self, inst):
+    def store_universal_site_lookup(self, inst):
         inst = inst['fields']
-        self._move(inst, 'universal_site', 'universal_site_id')
+        
+        inst['universal_site_id'] = self._check_universal_site(inst['universal_site'])
         return self._freplace(self.universal_site_lookups, datastore.universal_site_lookup, inst)
 
 dstore = DatastoreManager()
@@ -337,36 +384,41 @@ cjar = cookielib.CookieJar()
 
 def request(path, data = None):
     path = '%s%s' % (http_base, path)
+    print path
     req = urllib2.Request(path, data = data)
     
     h = urllib2.OpenerDirector()
-    h.add_handler(urllib2.HTTPHandler(debuglevel = 1))
+    h.add_handler(urllib2.HTTPHandler()) #debuglevel = 1))
     h.add_handler(urllib2.HTTPCookieProcessor(cjar))
-    return h.open(req)
+    return h.open(req).read()
 
 request('/login/')
 request('/login/', data = urllib.urlencode(credentials))
 
 ent_types = [
-    ('/partners/?response_type=json', dstore.load_partner),
-    ('/clients/?response_type=json', dstore.load_client),
-    ('/pixels/?response_type=json', dstore.load_pixel),
-    ('/piggyback_pixels/?response_type=json', dstore.load_piggyback_pixel),
-    ('/creatives/?response_type=json', dstore.load_creative),
-    ('/budgets/?response_type=json', dstore.load_budget),
-    ('/learning_budgets/?response_type=json', dstore.load_learning_budget),
-    ('/insertion_orders/?response_type=json', dstore.load_insertion_order),
-    ('/campaigns/?response_type=json', dstore.load_campaign),
-    ('/line_items/?target_options=True&response_type=json', dstore.load_line_item),
-    ('/inventory_sources/?response_type=json', dstore.load_inventory_source),
-    ('/inventory_groups/?response_type=json', dstore.load_inventory_group),
-    ('/inventory_units/?response_type=json', dstore.load_inventory_unit),
-    ('/inventory_sizes/?response_type=json', dstore.load_inventory_size),
-    ('/publisher_lineitems/?target_options=True&response_type=json', dstore.load_publisher_line_item),
-    ('/universal_sites/?response_type=json', dstore.load_universal_site),
+    ('../dumps/partners.dump', dstore.store_partner),
+    ('../dumps/clients.dump', dstore.store_client),
+    ('../dumps/pixels.dump', dstore.store_pixel),
+    ('../dumps/piggyback_pixels.dump', dstore.store_piggyback_pixel),
+    ('../dumps/creatives.dump', dstore.store_creative),
+    ('../dumps/budgets.dump', dstore.store_budget),
+    ('../dumps/learning_budgets.dump', dstore.store_learning_budget),
+    ('../dumps/insertion_orders.dump', dstore.store_insertion_order),
+    ('../dumps/campaigns.dump', dstore.store_campaign),
+    ('../dumps/line_items.dump', dstore.store_line_item),
+    ('../dumps/inventory_sources.dump', dstore.store_inventory_source),
+    ('../dumps/inventory_groups.dump', dstore.store_inventory_group),
+    ('../dumps/inventory_units.dump', dstore.store_inventory_unit),
+    ('../dumps/inventory_sizes.dump', dstore.store_inventory_size),
+    ('../dumps/publisher_line_items.dump', dstore.store_publisher_line_item),
+    ('../dumps/universal_sites.dump', dstore.store_universal_site),
 ]
 
 for (path, loader) in ent_types:
-    for inst in cjson.decode( request(path).read()):
-        loader( inst)
+    for inst in open(path):
+        try:
+            loader( cjson.decode(inst))
+        except Exception, e:
+            if e.message:
+                print e.message
 
