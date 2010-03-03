@@ -24,6 +24,7 @@ C = entity(
 C.foreign_key(
     cascade,
     ['par_id'], [C.id],
+    name = 'parent'
 )
 
 #######################

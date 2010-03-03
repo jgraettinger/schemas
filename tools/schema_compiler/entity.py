@@ -111,7 +111,7 @@ class Entity(object):
         self._indices_by_fields[field_names] = index
         return self
     
-    def foreign_key(self, fk_policy, local_names, foreign_fields):
+    def foreign_key(self, fk_policy, local_names, foreign_fields, name = None):
         local_names    = tuple(local_names)
         foreign_fields = tuple(foreign_fields)
         
@@ -138,12 +138,17 @@ class Entity(object):
         foreign_index = foreign_ent._indices_by_fields[foreign_names]
         assert foreign_index.is_unique
         
+        # names or foreign entity must uniquely identify a foreign key
+        for fkey in self._foreign_owned:
+            assert fkey.name != name or fkey.foreign_entity != foreign_ent
+        
         # obtain or create a local Index for field_names
         if local_names not in self._indices_by_fields:
             self.index('_and_'.join(local_names), Ordered, local_names)
         local_index = self._indices_by_fields[local_names]
         
         foreign_key = ForeignKey()
+        foreign_key.name = name
         foreign_key.local_fields   = local_fields
         foreign_key.foreign_fields = foreign_fields
         foreign_key.local_index    = local_index
@@ -166,6 +171,7 @@ class Entity(object):
         r.line('__slots__ = [').indent()
         for fname, ftype in self._fields.iteritems():
             r.line("'%s'," % fname)
+        r.line("'__db'")
         r.deindent().line(']')
         
         # Constructor / assignment
@@ -173,9 +179,11 @@ class Entity(object):
         r.line('self,')
         for fname, ftype in self._fields.iteritems():
             r.line('%s,' % fname)
+        r.line('__db = None')
         r.deindent().line('):').indent()
         for fname, ftype in self._fields.iteritems():
             r.line('self.%s = %s' % (fname, fname))
+        r.line('self.__db = __db')
         r.line('return').deindent()
 
         # Repr
@@ -184,6 +192,9 @@ class Entity(object):
         for fname, ftype in self._fields.iteritems():
             r.line('parts.append("%s = %%r" %% self.%s)' % (fname, fname))
         r.line('return "%s(%%s)" %% ", ".join(parts)' % self._name).deindent()
+        
+        for fkey in self._foreign_owned:
+            fkey.render_python_members(r)
         
         r.line().deindent()
         return
@@ -646,8 +657,7 @@ class Entity(object):
                 )
             else:
                 r.line(field.type.to_python('t.%s' % fname) + ',')
-        
-        r.unputc()
+        r.line('_owning_db')
         r.deindent().line(');')
         r.deindent().line('}')
         return

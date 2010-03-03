@@ -28,6 +28,7 @@ rest_paths = {
     'inventory_size':   '/inventory_sizes/?response_type=json',
     'publisher_line_item': '/publisher_lineitems/?target_options=True&response_type=json',
     'universal_site':   '/universal_sites/?response_type=json',
+    'target_option':    '/target_options/?name=country&response_type=json',
 }
 
 class DatastoreManager(object):
@@ -110,7 +111,7 @@ class DatastoreManager(object):
     @staticmethod
     def _freplace(tbl, kls, d):
         """Filters d to fields present in class kls, & replaces by id into table"""
-        d = dict((i,j) for (i,j) in d.iteritems() if i in kls.__dict__)
+        d = dict((i,j) for (i,j) in d.iteritems() if i in kls.__slots__)
         
         tbl.replace_id(d['id'], kls( **d))
         return d['id']
@@ -432,34 +433,36 @@ def request(path, data = None):
     h.add_handler(urllib2.HTTPCookieProcessor(cjar))
     return h.open(req).read()
 
-request('/login/')
-request('/login/', data = urllib.urlencode(credentials))
+#request('/login/')
+#request('/login/', data = urllib.urlencode(credentials))
 
 ent_types = [
-	('../dumps/target_options.dump', dstore.store_target_option),
-    ('../dumps/partners.dump', dstore.store_partner),
-    ('../dumps/clients.dump', dstore.store_client),
-    ('../dumps/pixels.dump', dstore.store_pixel),
-    ('../dumps/piggyback_pixels.dump', dstore.store_piggyback_pixel),
-    ('../dumps/creatives.dump', dstore.store_creative),
-    ('../dumps/budgets.dump', dstore.store_budget),
-    ('../dumps/learning_budgets.dump', dstore.store_learning_budget),
-    ('../dumps/insertion_orders.dump', dstore.store_insertion_order),
-    ('../dumps/campaigns.dump', dstore.store_campaign),
-    ('../dumps/line_items.dump', dstore.store_line_item),
-    ('../dumps/inventory_sources.dump', dstore.store_inventory_source),
-    ('../dumps/inventory_groups.dump', dstore.store_inventory_group),
-    ('../dumps/inventory_units.dump', dstore.store_inventory_unit),
-    ('../dumps/inventory_sizes.dump', dstore.store_inventory_size),
-    ('../dumps/publisher_line_items.dump', dstore.store_publisher_line_item),
-    ('../dumps/universal_sites.dump', dstore.store_universal_site),
+	('../dumps/target_option.dump', dstore.store_target_option),
+    ('../dumps/partner.dump', dstore.store_partner),
+    ('../dumps/client.dump', dstore.store_client),
+    ('../dumps/pixel.dump', dstore.store_pixel),
+    ('../dumps/piggyback_pixel.dump', dstore.store_piggyback_pixel),
+    ('../dumps/creative.dump', dstore.store_creative),
+    ('../dumps/budget.dump', dstore.store_budget),
+    ('../dumps/learning_budget.dump', dstore.store_learning_budget),
+    ('../dumps/insertion_order.dump', dstore.store_insertion_order),
+    ('../dumps/campaign.dump', dstore.store_campaign),
+    ('../dumps/line_item.dump', dstore.store_line_item),
+    ('../dumps/inventory_source.dump', dstore.store_inventory_source),
+    ('../dumps/inventory_group.dump', dstore.store_inventory_group),
+    ('../dumps/inventory_unit.dump', dstore.store_inventory_unit),
+    ('../dumps/inventory_size.dump', dstore.store_inventory_size),
+    ('../dumps/publisher_line_item.dump', dstore.store_publisher_line_item),
+    ('../dumps/universal_site.dump', dstore.store_universal_site),
 ]
 
 for (path, loader) in ent_types:
+    print path
     for inst in open(path):
         try:
             loader( cjson.decode(inst))
         except Exception, e:
             if e.message:
                 print e.message
+                raise
 

@@ -3,6 +3,7 @@ from ddl_core import *
 
 class ForeignKey(object):
     __slots__ = [
+        'name',
         'local_fields',
         'foreign_fields',
         'local_index',
@@ -149,3 +150,38 @@ class ForeignKey(object):
             self.project_key_foreign_to_local(row))
         return
     
+    def render_python_members(self, r):
+        
+        name = self.name or self.foreign_entity._name
+        
+        r.line('@property')
+        r.line('def %s(self):' % name).indent()
+        
+        # If any local fields are None, but their foreign
+        #  equivalents are not optional, lookup implicitly fails
+        checked_fields = []
+        for lf, ff in zip(self.local_fields, self.foreign_fields):
+            if lf.opt and not ff.opt:
+                checked_fields.append( lf.name)
+        
+        if checked_fields:
+            r.line('if self.%s == None:' % (
+                ' == None or self.'.join(checked_fields),)).indent()
+            r.line('return None').deindent()
+        
+        # foreign key
+        if len(self.local_fields) == 1:
+            local_fields = 'self.%s' % self.local_fields[0].name
+        else:
+            local_fields = '(self.%s)' % ', self.'.join(
+                i.name for i in self.local_fields)
+        
+        r.lines("""
+        return self.__db.aquire_table_%(foreign_entity)s(
+            ).get_%(foreign_index)s(%(local_fields)s)
+        """, 8,
+        name = name,
+        foreign_entity = self.foreign_entity._name,
+        foreign_index = self.foreign_index.name,
+        local_fields = local_fields,)
+        r.deindent()
