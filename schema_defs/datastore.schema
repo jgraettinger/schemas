@@ -104,15 +104,22 @@ insertion_order = entity(
 )
 
 # Target Option Names
-target_option_name = entity(
+target_option = entity(
     id   = ordered_unique(int),
     name = ordered_unique(str),
+    # Did this come down from the dashboard, or did we build it?
+    from_dashboard = bool,
 )
 
 # Target Option Values
 target_option_value = entity(
-    id    = ordered_unique(int),
-    value = ordered_unique(str),
+    id   = ordered_unique(int),
+    target_option_id = target_option.id,
+    name = str,
+).index(
+    'target_option_and_name',
+    ordered_unique,
+    ['target_option_id', 'name'],
 )
 
 # Campaign
@@ -133,8 +140,8 @@ campaign = entity(
 # Campaign target options
 campaign_target_option = relation(
     campaign_id     = campaign.id,
-    name_id         = target_option_name.id,
-    value_id        = target_option_value.id,
+    target_option_id = target_option.id,
+    target_option_value_id = target_option_value.id,
     exclude         = bool,
 )
 
@@ -267,9 +274,9 @@ inventory_size = entity(
     adnexus_id =             optional(int),
     width =                  int,
     height =                 int,
-    iframe_tag =             str,
+#    iframe_tag =             str,
     linked_partner_reserve = float,
-    script_tag =             str,
+#    script_tag =             str,
 ).index(
     'source',
     ordered,
@@ -321,9 +328,9 @@ publisher_line_item_default_creative = relation(
 # Publisher line item target options
 publisher_line_item_target_option = relation(
     publisher_line_item_id = publisher_line_item.id,
-    name_id =  target_option_name.id,
-    value_id = target_option_value.id,
-    exclude =  bool,
+    target_option_id =  target_option.id,
+    target_option_value_id = target_option_value.id,
+    exclude = bool,
 )
 
 # Universal Site

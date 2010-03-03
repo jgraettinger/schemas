@@ -44,7 +44,7 @@ class DatastoreManager(object):
         self.budgets = self.db.aquire_table_budget()
         self.learning_budgets = self.db.aquire_table_learning_budget()
         self.insertion_orders = self.db.aquire_table_insertion_order()
-        self.target_option_names = self.db.aquire_table_target_option_name()
+        self.target_options = self.db.aquire_table_target_option()
         self.target_option_values = self.db.aquire_table_target_option_value()
         self.frequency_caps = self.db.aquire_table_frequency_cap()
         self.campaigns = self.db.aquire_table_campaign()
@@ -66,8 +66,8 @@ class DatastoreManager(object):
         self.universal_sites = self.db.aquire_table_universal_site()
         self.universal_site_lookups = self.db.aquire_table_universal_site_lookup()
         
-        self.__next_topt_name_id = 1
-        self.__next_topt_value_id = 1
+        self.__next_topt_id = 1
+        self.__next_topt_val_id = 1
         self.__rest_attempts = set()
         
         # generate _check & load methods for core entity types
@@ -119,15 +119,19 @@ class DatastoreManager(object):
         
         for topt_name, topt_values in target_options.iteritems():
             
-            # Intern topt name string
-            tn = self.target_option_names.get_name(topt_name)
-            if not tn:
-                tn = datastore.target_option_name(
-                    id = self.__next_topt_name_id, name = topt_name)
-                self.target_option_names.insert( tn)
-                self.__next_topt_name_id += 1
-            
-            arg_bag['name_id'] = tn.id
+            # Lookup / insert target option
+            topt = self.target_options.get_name(topt_name)
+            if not topt:
+                arg_bag['target_option_id'] = self.store_target_option(
+                    {'fields': {
+                        'id': self.__next_topt_id,
+                        'name': topt_name,
+                        'target_option_values': [],
+                    }}, from_dashboard = False)
+                
+                self.__next_topt_id += 1
+            else:
+                arg_bag['target_option_id'] = topt.id
             
             if topt_values[1] == True:
                 arg_bag['exclude'] = False
@@ -147,20 +151,57 @@ class DatastoreManager(object):
     
     def _store_target_option_vals(self, arg_bag, topt_values, kls, tbl):
         
-        for topt_val in topt_values:
+        topt_id = arg_bag['target_option_id']
+        for topt_val_name in topt_values:
             
-            # Intern topt value string
-            tv = self.target_option_values.get_value(topt_val)
-            if not tv:
-                tv = datastore.target_option_value(
-                    id = self.__next_topt_value_id, value = topt_val)
-                self.target_option_values.insert( tv)
-                self.__next_topt_value_id += 1
+            # Lookup / insert target option value
+            topt_val = self.target_option_values.get_target_option_and_name(
+                (topt_id, topt_val_name))
             
-            arg_bag['value_id'] = tv.id
+            if not topt_val:
+                arg_bag['target_option_value_id'] = \
+                    self.store_target_option_value(
+                        {'fields': {
+                            'id': self.__next_topt_val_id,
+                            'target_option': topt_id,
+                            'name': topt_val_name,
+                        }})
+                
+                self.__next_topt_val_id += 1
+            else:
+                arg_bag['target_option_value_id'] = topt_val.id
+            
             tbl.insert( kls( **arg_bag))
         
         return
+
+    def store_target_option(self, inst, from_dashboard = True):
+        inst = inst['fields']
+        inst['from_dashboard'] = from_dashboard
+        id = self._freplace( self.target_options, datastore.target_option, inst)
+        
+        if self.__next_topt_id <= id:
+            self.__next_topt_id = id + 1
+        
+        self.target_option_values.delete_target_option_id( id)
+        for tov in inst['target_option_values']:
+            self.store_target_option_value(tov)
+        return id
+    
+    def store_target_option_value(self, inst):
+        inst = inst['fields']
+        inst['target_option_id'] = self._check_target_option( inst['target_option'])
+        
+        try:
+            id = self._freplace(self.target_option_values, datastore.target_option_value, inst) 
+        except Exception, e:
+            print e
+            return 0
+        
+        if self.__next_topt_val_id <= id:
+            self.__next_topt_val_id = id + 1
+        
+        return id
     
     def store_partner(self, inst):
         inst = inst['fields']
@@ -177,8 +218,7 @@ class DatastoreManager(object):
         inst = inst['fields']
         inst['partner_id'] = self._check_partner( inst['partner'])
         inst['client_id']  = self._check_client( inst['client'])
-        id = self._freplace(self.pixels, datastore.pixel, inst)
-        return
+        return self._freplace(self.pixels, datastore.pixel, inst)
     
     def store_piggyback_pixel(self, inst):
         inst['fields']['id'] = inst['pk']
@@ -227,7 +267,7 @@ class DatastoreManager(object):
         for pitem in inst['payment_items']:
             self.store_payment_item(pitem)
         
-        return 
+        return id
     
     def store_frequency_cap(self, inst):
         inst = inst['fields']
@@ -351,7 +391,7 @@ class DatastoreManager(object):
             datastore.publisher_line_item_target_option,
             self.publisher_line_item_target_options
         )
-        return
+        return id
     
     def store_publisher_line_item_default_creative(self, inst):
         inst = inst['fields']
@@ -396,6 +436,7 @@ request('/login/')
 request('/login/', data = urllib.urlencode(credentials))
 
 ent_types = [
+	('../dumps/target_options.dump', dstore.store_target_option),
     ('../dumps/partners.dump', dstore.store_partner),
     ('../dumps/clients.dump', dstore.store_client),
     ('../dumps/pixels.dump', dstore.store_pixel),
