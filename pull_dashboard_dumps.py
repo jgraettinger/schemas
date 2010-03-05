@@ -4,11 +4,11 @@ import cookielib
 import cjson
 import sys
 
-#http_base = "http://inst1.dev.dashboard.invitemedia.com"
-#credentials = {'username': 'superuser', 'password': 'imim42'}
+http_base = "http://inst1.dev.dashboard.invitemedia.com"
+credentials = {'username': 'superuser', 'password': 'imim42'}
 
-http_base = "http://ev3.dash.invitemedia.com:1234"
-credentials = {'username': 'internal_api_user', 'password': 'PMVCR24m'}
+#http_base = "http://ev3.dash.invitemedia.com:1234"
+#credentials = {'username': 'internal_api_user', 'password': 'PMVCR24m'}
 
 rest_paths = {
     'partner':          '/partners/?response_type=json',

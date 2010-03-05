@@ -215,11 +215,12 @@ line_item = entity(
     creative_id =                              creative.id,
     
     active =                                   ordered(bool),
-    adnexus_active =                           bool,
-    adbrite_active =                           bool,
-    admeld_active =                            bool,
-    pubmatic_active =                          bool,
-    google_active =                            bool,
+    adnexus_active =                           ordered(bool),
+    adecn_active =                             ordered(bool),
+    adbrite_active =                           ordered(bool),
+    admeld_active =                            ordered(bool),
+    pubmatic_active =                          ordered(bool),
+    google_active =                            ordered(bool),
     
     cost_adjustment =                          float,
     learn_mode =                               bool,
@@ -243,6 +244,7 @@ inventory_source = entity(
     linked_partner_reserve =  optional(str),
     managed =                 bool,
     reserve_cpm =             optional(float),
+    name =                    ordered_unique(str),
 )
 
 # Inventory Group

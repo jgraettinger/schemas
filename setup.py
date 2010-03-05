@@ -56,7 +56,7 @@ for schema in schemas:
         Extension(
             'schemas.%s._%s' % (schema, schema),
             eval(open('schemas/%s/generated_sources.py' % schema).read()),
-            libraries = ['boost_python-py25' if sys.version.startswith('2.5') else 'boost_python-py26'],
+            libraries = ['boost_python'],
             extra_compile_args = ['-O3'], # optimize
             extra_link_args = ['-s'], # strip debugging info
         ))
