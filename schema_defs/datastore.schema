@@ -217,6 +217,8 @@ line_item = entity(
     
     campaign_id =                              campaign.id,
     creative_id =                              creative.id,
+    client_id =                                client.id,
+    partner_id =                               partner.id,
     
     active =                                   bool,
     adnexus_active =                           bool,
