@@ -165,6 +165,10 @@ client_goal = entity(
     goal_type =      interned,
     view_amount =    optional(float),
     view_window =    optional(int),
+).index(
+    'campaign_goal_type',
+    hashed_unique,
+    ['campaign_id', 'goal_type']
 )
 
 # Client Goal => Pixel
