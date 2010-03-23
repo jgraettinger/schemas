@@ -309,6 +309,9 @@ class DatastoreManager(object):
     def store_line_item(self, inst):
         inst = inst['fields']
         
+        # HACK
+        inst['adecn_active'] = True
+        
         inst['campaign_id'] = self._check_campaign(inst['campaign'])
         inst['creative_id'] = self._check_creative(inst['creative'])
         
