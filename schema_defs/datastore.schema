@@ -131,7 +131,7 @@ campaign = entity(
     learn_mode =                     bool,
     priority =                       int,
     campaign_type =                  optional(interned),
-    click_conversion_rate =          interned,
+    click_conversion_rate =          float,
     optimized_click_threshold =      int,
     optimized_conversion_threshold = int,
     optimized_impression_threshold = int,
@@ -139,10 +139,10 @@ campaign = entity(
 
 # Campaign target options
 campaign_target_option = relation(
-    campaign_id     = campaign.id,
+    campaign_id      = campaign.id,
     target_option_id = target_option.id,
     target_option_value_id = target_option_value.id,
-    exclude         = bool,
+    exclude          = bool,
 )
 
 # Frequency Cap
@@ -158,12 +158,12 @@ frequency_cap = entity(
 client_goal = entity(
     id =             ordered_unique(int),
     campaign_id =    campaign.id,
-    amount =         optional(str),
-    click_amount =   optional(str),
+    amount =         optional(float),
+    click_amount =   optional(float),
     click_window =   optional(int),
     deleted =        bool,
     goal_type =      interned,
-    view_amount =    optional(str),
+    view_amount =    optional(float),
     view_window =    optional(int),
 )
 
@@ -178,12 +178,12 @@ payment_item = entity(
     id =                                  hashed_unique(int),
     campaign_id =                         campaign.id,
     item_type =                           interned,
-    amount =                              optional(str),
-    click_amount =                        optional(str),
+    amount =                              optional(float),
+    click_amount =                        optional(float),
     click_window =                        optional(int),
     media_cost_markup =                   optional(interned),
     media_cost_markup_applies_to_total =  bool,
-    view_amount =                         optional(str),
+    view_amount =                         optional(float),
     view_window =                         optional(int),
 )
 
@@ -196,15 +196,15 @@ payment_item_pixel = relation(
 # Bidding Strategy
 bidding_strategy = entity(
     id =                  ordered_unique(int),
-    campaign_id =         hashed( campaign.id),
-    amount =              optional(str),
-    click_amount =        optional(str),
-    max_amount =          optional(str),
+    campaign_id =         hashed(campaign.id),
+    amount =              optional(float),
+    click_amount =        optional(float),
+    max_amount =          optional(float),
     price_reduce =        bool,
     pricing_type =        optional(interned),
     stay_within_goals =   bool,
     strategy_type =       interned,
-    view_amount =         optional(str),
+    view_amount =         optional(float),
 )
 
 # Line Item
@@ -241,7 +241,6 @@ inventory_source = entity(
     partner_id =              partner.id,
     piggyback_pixel_id =      optional(piggyback_pixel.id),
     integration_code =        optional(str),
-    linked_partner_reserve =  optional(str),
     managed =                 bool,
     reserve_cpm =             optional(float),
     name =                    ordered(str),
@@ -252,7 +251,6 @@ inventory_group = entity(
     id =                      ordered_unique(int),
     inventory_source_id =     inventory_source.id,
     integration_code =        optional(str),
-    linked_partner_reserve =  optional(str),
 )
 
 # Inventory Unit
@@ -260,7 +258,6 @@ inventory_unit = entity(
     id =                      ordered_unique(int),
     inventory_group_id =      inventory_group.id,
     integration_code =        optional(interned),
-    linked_partner_reserve =  optional(interned),
 )
 
 # Inventory Size
@@ -307,7 +304,7 @@ publisher_line_item = entity(
     inventory_source_name =  ordered(str),
     default_trust_clients =  bool,
     integration_code =       optional(str),
-    pricing_amount =         str,
+    pricing_amount =         float,
     pricing_type =           interned,
     reserve_cpm =            optional(float),
 ).index(
