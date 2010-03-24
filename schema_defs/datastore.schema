@@ -19,6 +19,7 @@ client = entity(
     id =               hashed_unique(int),
     partner_id =       partner.id,
     landing_page_url = str,
+    name =             str,
 )
 
 # Pixel
