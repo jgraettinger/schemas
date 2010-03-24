@@ -359,7 +359,24 @@ universal_site_lookup = entity(
     url =               optional(str),
 ).index(
     'type_and_code',
-    ordered,
+    hashed_unique,
     ['lookup_type', 'code'],
 )
 
+universal_site_lookup_part = entity(
+    id = hashed_unique(int),
+    token = interned,
+    universal_site_id = optional(universal_site.id),
+    parent_id = optional(int)
+)
+universal_site_lookup_part.index(
+    'previous_lookup',
+    hashed_unique,
+    ['parent_id', 'token']
+)
+universal_site_lookup_part.foreign_key(
+    restrict,
+    ['parent_id'],
+    [universal_site_lookup_part.id],
+    name = 'parent'
+)
