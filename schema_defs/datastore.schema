@@ -359,7 +359,7 @@ universal_site_lookup = entity(
     url =               optional(str),
 ).index(
     'type_and_code',
-    hashed_unique,
+    ordered,
     ['lookup_type', 'code'],
 )
 
