@@ -102,6 +102,7 @@ insertion_order = entity(
     id =         ordered_unique(int),
     client_id =  client.id,
     budget_id =  budget.id,
+    integration_code = optional(str),
 )
 
 # Target Option Names
@@ -132,6 +133,7 @@ campaign = entity(
     learn_mode =                     bool,
     priority =                       int,
     campaign_type =                  optional(interned),
+    integration_code =               optional(str),
     click_conversion_rate =          float,
     optimized_click_threshold =      int,
     optimized_conversion_threshold = int,
