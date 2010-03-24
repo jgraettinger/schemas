@@ -69,6 +69,7 @@ creative = entity(
     track_clicks =              bool,
     tracking_pixel =            optional(interned),
     url_type =                  interned,
+    integration_code =          str,
 )
 
 # Budget
