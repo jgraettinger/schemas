@@ -61,3 +61,22 @@ F = entity(
     [D.pk1, D.pk2],
 )
 
+####################### 
+# test_prefix_tree.py
+
+prefix_tree_node = entity(
+    id = hashed_unique(int),
+    parent_id = int,
+    token = str,
+)
+prefix_tree_node.index(
+    'child',
+    hashed_unique,
+    ['parent_id', 'token'],
+)
+prefix_tree_node.foreign_key(
+    cascade,
+    ['parent_id'],
+    [prefix_tree_node.id],
+    name = 'parent'
+)
