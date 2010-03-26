@@ -148,6 +148,10 @@ campaign_target_option = relation(
     target_option_id = target_option.id,
     target_option_value_id = target_option_value.id,
     exclude          = bool,
+).index(
+    'campaign_and_target_option',
+    ordered,
+    ['campaign_id', 'target_option_id'],
 )
 
 # Frequency Cap
