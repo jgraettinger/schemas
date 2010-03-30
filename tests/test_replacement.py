@@ -2,12 +2,12 @@
 import unittest
 
 import schemas.testdb
-from schemas.testdb import *
+from schemas.testdb.instance_types import *
 
 class TestReplacement(unittest.TestCase):
     
     def setUp(self):
-        self.db = testdb()
+        self.db = schemas.testdb.testdb()
         self.tab_G = self.db.aquire_table_G()
         self.tab_D = self.db.aquire_table_D()
     

@@ -4,10 +4,11 @@ from ddl_core import *
 
 
 class Database(object):
-    __slots__ = ['_name', '_entities']
+    __slots__ = ['_name', '_schema', '_entities']
     
-    def __init__(self, _database_name, **kwargs):
+    def __init__(self, _database_name, _database_schema, **kwargs):
         self._name = _database_name
+        self._schema = _database_schema
         self._entities = {}
         
         for ent_name, ent in kwargs.iteritems():
@@ -139,7 +140,7 @@ class Database(object):
             'database':       Database,
         }
         
-        schema_globals = {}
-        execfile(schema_path, schema_keywords, schema_globals)
+        schema_globals = {'_database_schema': open(schema_path).read()}
+        exec(schema_globals['_database_schema'], schema_keywords, schema_globals)
         return Database(**schema_globals)
 

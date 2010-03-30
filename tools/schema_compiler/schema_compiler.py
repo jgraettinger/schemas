@@ -1,8 +1,8 @@
 
+import sys, os, md5
 from database import Database
 from renderer import CodeRenderer
 from hpp_head import hpp_head
-import sys, os
 
 if len(sys.argv) != 3:
     print "Usage: %s <schema in> <dir out>" % sys.argv[0]
@@ -30,15 +30,23 @@ def write_py_init(db, path_out):
     r.lines("""
     from _%(db_name)s import %(db_name)s as _%(db_name)s
     
-    import %(db_name)s_types as __pytypes
-    from %(db_name)s_types import *
-    del %(db_name)s_types
+    import instance_types
     
-    # Encapsulate presenting constructor with python entity types
-    def %(db_name)s():
-        return _%(db_name)s(__pytypes.__dict__)
+    class %(db_name)s(_%(db_name)s):
+        def __init__(self):
+            # provide entity types for to-python conversion
+            _%(db_name)s.__init__(self, instance_types.__dict__)
+    
+    schema_hash = %(hash)r
+    
+    schema_tables = %(tables)r
+    
+    schema_code = %(code)r
     """, 4,
     db_name = db._name,
+    tables = [i for i in db._entities],
+    hash = md5.md5(db._schema).hexdigest(),
+    code = db._schema,
     )
     
     path = os.sep.join((path_out, '__init__.py'))
@@ -54,7 +62,7 @@ def write_py_types(db, path_out):
         ent.render_python_class(r)
     r.line()
     
-    path = os.sep.join((path_out, '%s_types.py' % db._name))
+    path = os.sep.join((path_out, 'instance_types.py'))
     write_if_changed(path, r.render())
     return path
 

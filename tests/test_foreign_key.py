@@ -2,12 +2,12 @@
 import unittest
 
 import schemas.testdb
-from schemas.testdb import *
+from schemas.testdb.instance_types import *
 
 class TestForeignKey(unittest.TestCase):
     
     def setUp(self):
-        self.db = testdb()
+        self.db = schemas.testdb.testdb()
         self.tab_A = self.db.aquire_table_A()
         self.tab_B = self.db.aquire_table_B()
         self.tab_C = self.db.aquire_table_C()
