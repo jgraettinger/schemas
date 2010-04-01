@@ -59,6 +59,7 @@ piggyback_pixel = entity(
 creative = entity(
     id =                        hashed_unique(int),
     client_id =                 client.id,
+    adnexus_id =                optional(int),
     asset_url =                 optional(str),
     clickthrough_url =          optional(str),
     landing_page_url =          optional(str),
