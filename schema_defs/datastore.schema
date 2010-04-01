@@ -241,6 +241,9 @@ line_item = entity(
     
     cost_adjustment =                          float,
     learn_mode =                               bool,
+    
+    cpm_additional_cost_1 =                    optional(float),
+    cpm_additional_cost_2 =                    optional(float),
     percent_media_additional_cost_1 =          optional(float),
     percent_media_additional_cost_2 =          optional(float),
     percent_profit_margin_additional_cost_1 =  optional(float),
