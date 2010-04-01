@@ -61,6 +61,7 @@ creative = entity(
     client_id =                 client.id,
     asset_url =                 optional(str),
     clickthrough_url =          optional(str),
+    landing_page_url =          optional(str),
     flash_click_tag =           optional(interned),
     flash_loop =                bool,
     priority =                  int,
