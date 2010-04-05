@@ -12,6 +12,7 @@ partner = entity(
     can_buy_on_realtime_adnexus =  bool,
     can_buy_on_realtime_adbrite =  bool,
     can_buy_on_right_media =       bool,
+    disable_data_provider_redirects = bool,
 )
 
 # Client
