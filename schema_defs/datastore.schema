@@ -321,7 +321,8 @@ publisher_line_item = entity(
     id =                     hashed_unique(int),
     partner_id =             partner.id,
     inventory_source_id =    inventory_source.id,
-    insertion_order_id =     insertion_order.id,
+    # PublisherLineItemInsertionOrder, !different! than insertion_order
+    insertion_order_id =     int,
     inventory_source_name =  ordered(str),
     default_trust_clients =  bool,
     integration_code =       optional(str),
