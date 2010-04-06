@@ -179,7 +179,7 @@ client_goal = entity(
     view_window =    optional(int),
 ).index(
     'campaign_goal_type',
-    hashed_unique,
+    hashed,
     ['campaign_id', 'goal_type']
 )
 
@@ -252,7 +252,7 @@ line_item = entity(
     
 ).index(
     'campaign_and_creative',
-    ordered,
+    ordered_unique,
     ['campaign_id', 'creative_id'],
 )
 
