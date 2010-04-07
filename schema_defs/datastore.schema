@@ -6,6 +6,7 @@ partner = entity(
     sell_to_adnexus =              bool,
     right_media_id =               optional(int),
     adnexus_id =                   optional(int),
+    google_id =                    optional(int),
     can_buy_on_realtime_adbrite =  bool,
     can_buy_on_realtime_adecn =    bool,
     can_buy_on_realtime_admeld =   bool,
@@ -183,7 +184,6 @@ client_goal = entity(
     amount =         optional(float),
     click_amount =   optional(float),
     click_window =   optional(int),
-    deleted =        bool,
     goal_type =      interned,
     view_amount =    optional(float),
     view_window =    optional(int),
@@ -294,12 +294,8 @@ inventory_unit = entity(
 # Inventory Size
 inventory_size = entity(
     id =                     hashed_unique(int),
-    partner_id =             partner.id,
     inventory_unit_id =      inventory_unit.id,
     inventory_source_id =    inventory_source.id,
-    
-    unit_integration_code =  optional(str),
-    group_integration_code = optional(str),
     
     adnexus_id =             optional(int),
     width =                  int,
@@ -323,7 +319,7 @@ inventory_size_code = relation(
     height =             int,
 ).index(
     'code',
-    ordered,
+    ordered_unique,
     ['is_group', 'integration_code', 'partner_id', 'width', 'height'],
 )
 
@@ -370,7 +366,6 @@ publisher_line_item_target_option = relation(
 universal_site = entity(
     id =                   ordered_unique(int),
     is_targetable =        bool,
-    target_option_value =  optional(int),
 )
 
 universal_site_code_lookup = entity(
