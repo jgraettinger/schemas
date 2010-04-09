@@ -337,6 +337,10 @@ publisher_line_item = entity(
     'parter_integration',
     ordered,
     ['partner_id', 'integration_code'],
+).index(
+    'partner_inventory_source_name',
+    ordered,
+    ['partner_id', 'inventory_source_name'],
 )
 
 # Publisher line item default creatives
@@ -357,6 +361,10 @@ publisher_line_item_target_option = relation(
     target_option_id =  target_option.id,
     target_option_value_id = target_option_value.id,
     exclude = bool,
+).index(
+    'publisher_line_item_and_target_option',
+    ordered,
+    ['publisher_line_item_id', 'target_option_id'],
 )
 
 # Universal Site
