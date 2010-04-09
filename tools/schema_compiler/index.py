@@ -110,13 +110,13 @@ class Index(object):
             r.line('const boost::python::object &);').deindent()
             
         else:
-            r.line('%s with_%s(' % (self.get_iterator_type(), self.name)).indent()
+            r.line('boost::python::list with_%s(' % self.name).indent()
             r.line('const boost::python::object &);').deindent()
         
         if self.is_ordered:
             r.line('%s by_%s();' % (self.get_iterator_type(), self.name))
             
-            r.line('%s range_%s(' % (self.get_iterator_type(), self.name)).indent()
+            r.line('boost::python::list range_%s(' % self.name).indent()
             r.line('const boost::python::object & lower, '
                 'const boost::python::object & upper);').deindent()
             
@@ -333,7 +333,6 @@ class Index(object):
             ind_key_ex = ind_key_ex,
             ind_name  = self.name,
             ind_type  = self.get_index_type(),
-            iter_name = self.get_iterator_type(),
             key_type  = self.get_key_type(),
             lkey_ex   = self.__py_key_parts('lower'),
             ukey_ex   = self.__py_key_parts('upper'),
@@ -394,7 +393,7 @@ class Index(object):
             # Non-unique index; minimally supports equal_range
             
             r.lines("""
-            %(iter_name)s table_%(ent_name)s::with_%(ind_name)s(
+            boost::python::list table_%(ent_name)s::with_%(ind_name)s(
                 const boost::python::object & o)
             {
                 std::pair<
@@ -404,8 +403,11 @@ class Index(object):
                     %(ind_get)s.equal_range(
                         %(okey_ex)s));
                 
-                return %(iter_name)s(
-                    it_range.first, it_range.second, shared_from_this());
+                boost::python::list lst;
+                for(; it_range.first != it_range.second; ++it_range.first)
+                    lst.append( to_python(*it_range.first));
+                
+                return lst;
             }
             """, 12, **kw_exp)
         
@@ -422,17 +424,22 @@ class Index(object):
                 );
             }
             
-            %(iter_name)s table_%(ent_name)s::range_%(ind_name)s(
+            boost::python::list table_%(ent_name)s::range_%(ind_name)s(
                 const boost::python::object & lower,
                 const boost::python::object & upper)
             {
-                return %(iter_name)s(
+                %(ind_type)s::const_iterator cur(
                     %(ind_get)s.lower_bound(
-                        %(lkey_ex)s),
+                        %(lkey_ex)s));
+                %(ind_type)s::const_iterator end(
                     %(ind_get)s.upper_bound(
-                        %(ukey_ex)s),
-                    shared_from_this()
-                );
+                        %(ukey_ex)s));
+                
+                boost::python::list lst;
+                for(; cur != end; ++cur)
+                    lst.append( to_python(*cur));
+                
+                return lst;
             }
             """, 12, **kw_exp)
         
